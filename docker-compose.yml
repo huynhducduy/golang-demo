@@ -1,0 +1,38 @@
+version: "3.7"
+
+services:
+    # Production container. Builds in release mode and run. Project will be restarted on every abort.
+    production:
+        hostname: my-app-production
+        restart: unless-stopped
+        build:
+            context: .
+            dockerfile: Dockerfile
+            target: base
+        environment:
+            GIN_MODE: "release" # Example ENV variable
+            SERVING_PORT: "*:8080" # Example ENV variable
+        volumes:
+            - .:/home/my-app
+        working_dir: /home/my-app
+        ports:
+            - "8080:8080" # Opened ports
+        command: bash -c "go mod download && go build -o /bin/my-app . && /bin/my-app"
+
+    # Development container. Runs in debug mode and live-reloading on every source file update.
+    development:
+        hostname: my-app-development
+        restart: unless-stopped
+        build:
+            context: .
+            dockerfile: Dockerfile
+            target: dev
+        environment:
+            DEBUG: "true" # Example ENV variable
+            SERVING_PORT: ":8081" # Example ENV variable
+        volumes:
+            - ./home/my-app
+        working_dir: /home/my-app
+        ports:
+            - "8081:8081"
+        command: bash -c "go mod download && make serve"
