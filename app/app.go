@@ -1,12 +1,14 @@
 package app
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
 	"github.com/spf13/viper"
 )
@@ -19,17 +21,17 @@ import (
 type allGroups []Group
 
 var groups = allGroups{
-	{
-		Id:          "1",
-		Name:        "Introduction to Golang",
-		Description: "Come join us for a chance to learn how golang works and get to eventually try it out",
-	},
+	// {
+	// 	Id:          "1",
+	// 	Name:        "Introduction to Golang",
+	// 	Description: "Come join us for a chance to learn how golang works and get to eventually try it out",
+	// },
 }
 
 type Group struct {
-	Id          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
+	Id          string         `json:"id"`
+	Name        string         `json:"name"`
+	Description sql.NullString `json:"description"`
 }
 
 func home(w http.ResponseWriter, r *http.Request) {
@@ -37,6 +39,34 @@ func home(w http.ResponseWriter, r *http.Request) {
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
+	db, err := sql.Open("mysql", config.DB_USER+":"+config.DB_PASS+"@tcp("+config.DB_HOST+":"+config.DB_PORT+")/"+config.DB_NAME)
+
+	if err != nil {
+		panic(err.Error())
+	}
+	defer db.Close()
+
+	err = db.Ping()
+	if err != nil {
+		panic(err.Error())
+	}
+
+	results, err := db.Query("SELECT `name`, `description` FROM `groups`")
+	if err != nil {
+		panic(err.Error())
+	}
+
+	for results.Next() {
+		var group Group
+
+		err = results.Scan(&group.Id, &group.Description)
+		if err != nil {
+			panic(err.Error())
+		}
+
+		log.Printf(group.Name)
+		log.Printf(group.Description.String)
+	}
 }
 
 func register(w http.ResponseWriter, r *http.Request) {
