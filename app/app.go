@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 
@@ -18,20 +17,10 @@ import (
 // 	Password string `json:"password"`
 // }
 
-type allGroups []Group
-
-var groups = allGroups{
-	// {
-	// 	Id:          "1",
-	// 	Name:        "Introduction to Golang",
-	// 	Description: "Come join us for a chance to learn how golang works and get to eventually try it out",
-	// },
-}
-
 type Group struct {
-	Id          string         `json:"id"`
-	Name        string         `json:"name"`
-	Description sql.NullString `json:"description"`
+	Id          *string `json:"id"`
+	Name        *string `json:"name"`
+	Description *string `json:"description"`
 }
 
 func home(w http.ResponseWriter, r *http.Request) {
@@ -39,6 +28,12 @@ func home(w http.ResponseWriter, r *http.Request) {
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
+}
+
+func register(w http.ResponseWriter, r *http.Request) {
+}
+
+func getAllGroups(w http.ResponseWriter, r *http.Request) {
 	db, err := sql.Open("mysql", config.DB_USER+":"+config.DB_PASS+"@tcp("+config.DB_HOST+":"+config.DB_PORT+")/"+config.DB_NAME)
 
 	if err != nil {
@@ -56,79 +51,76 @@ func login(w http.ResponseWriter, r *http.Request) {
 		panic(err.Error())
 	}
 
+	var groups []Group
+
 	for results.Next() {
 		var group Group
 
-		err = results.Scan(&group.Id, &group.Description)
+		err = results.Scan(&group.Name, &group.Description)
 		if err != nil {
 			panic(err.Error())
 		}
 
-		log.Printf(group.Name)
-		log.Printf(group.Description.String)
+		groups = append(groups, group)
+
 	}
-}
 
-func register(w http.ResponseWriter, r *http.Request) {
-}
-
-func getAllGroups(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(groups)
 }
 
 func createGroup(w http.ResponseWriter, r *http.Request) {
-	var newGroup Group
-	reqBody, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		fmt.Fprintf(w, "Kindly enter data with the event title and description only in order to update")
-	}
+	// var newGroup Group
+	// reqBody, err := ioutil.ReadAll(r.Body)
+	// if err != nil {
+	// 	fmt.Fprintf(w, "Kindly enter data with the event title and description only in order to update")
+	// }
 
-	json.Unmarshal(reqBody, &newGroup)
-	groups = append(groups, newGroup)
-	w.WriteHeader(http.StatusCreated)
+	// json.Unmarshal(reqBody, &newGroup)
+	// groups = append(groups, newGroup)
+	// w.WriteHeader(http.StatusCreated)
 
-	json.NewEncoder(w).Encode(newGroup)
+	// json.NewEncoder(w).Encode(newGroup)
 }
 
 func getOneGroup(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
+	// id := mux.Vars(r)["id"]
 
-	for _, group := range groups {
-		if group.Id == id {
-			json.NewEncoder(w).Encode(group)
-		}
-	}
+	// for _, group := range groups {
+	// 	if group.Id == id {
+	// 		json.NewEncoder(w).Encode(group)
+	// 	}
+	// }
 }
 
 func updateGroup(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
-	var updatedGroup Group
+	// id := mux.Vars(r)["id"]
+	// var updatedGroup Group
 
-	reqBody, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		fmt.Fprintf(w, "Kindly enter data with the event title and description only in order to update")
-	}
-	json.Unmarshal(reqBody, &updatedGroup)
+	// reqBody, err := ioutil.ReadAll(r.Body)
+	// if err != nil {
+	// 	fmt.Fprintf(w, "Kindly enter data with the event title and description only in order to update")
+	// }
+	// json.Unmarshal(reqBody, &updatedGroup)
 
-	for i, group := range groups {
-		if group.Id == id {
-			group.Name = updatedGroup.Name
-			group.Description = updatedGroup.Description
-			groups = append(groups[:i], group)
-			json.NewEncoder(w).Encode(group)
-		}
-	}
+	// for i, group := range groups {
+	// 	if group.Id == id {
+	// 		group.Name = updatedGroup.Name
+	// 		group.Description = updatedGroup.Description
+	// 		groups = append(groups[:i], group)
+	// 		json.NewEncoder(w).Encode(group)
+	// 	}
+	// }
 }
 
 func deleteGroup(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
+	// id := mux.Vars(r)["id"]
 
-	for i, group := range groups {
-		if group.Id == id {
-			groups = append(groups[:i], groups[i+1:]...)
-			fmt.Fprintf(w, "The event with ID %v has been deleted successfully", id)
-		}
-	}
+	// for i, group := range groups {
+	// 	if group.Id == id {
+	// 		groups = append(groups[:i], groups[i+1:]...)
+	// 		fmt.Fprintf(w, "The event with ID %v has been deleted successfully", id)
+	// 	}
+	// }
 }
 
 type Config struct {
