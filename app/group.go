@@ -73,7 +73,7 @@ func createGroup(w http.ResponseWriter, r *http.Request, id int) {
 	json.Unmarshal(reqBody, &newGroup)
 
 	if newGroup.Name == nil {
-		w.WriteHeader(http.StatusBadGateway)
+		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(MessageResponse{
 			Message: "Group's name must not be empty!",
 		})
@@ -148,32 +148,81 @@ func getOneGroup(w http.ResponseWriter, r *http.Request, id int) {
 }
 
 func updateGroup(w http.ResponseWriter, r *http.Request, id int) {
-	// id := mux.Vars(r)["id"]
-	// var updatedGroup Group
+	idGr := mux.Vars(r)["id"]
 
-	// reqBody, err := ioutil.ReadAll(r.Body)
-	// if err != nil {
-	// 	fmt.Fprintf(w, "Kindly enter data with the event title and description only in order to update")
-	// }
-	// json.Unmarshal(reqBody, &updatedGroup)
+	var group Group
 
-	// for i, group := range groups {
-	// 	if group.Id == id {
-	// 		group.Name = updatedGroup.Name
-	// 		group.Description = updatedGroup.Description
-	// 		groups = append(groups[:i], group)
-	// 		json.NewEncoder(w).Encode(group)
-	// 	}
-	// }
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(MessageResponse{
+			Message: "Internal error!",
+		})
+		log.Printf(err.Error())
+		return
+	}
+
+	json.Unmarshal(reqBody, &group)
+
+	if group.Name == nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(MessageResponse{
+			Message: "Group's name must not be empty!",
+		})
+		return
+	}
+
+	db, dbClose := openConnection()
+	if db == nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(MessageResponse{
+			Message: "Internal error!",
+		})
+		return
+	}
+	defer dbClose()
+
+	_, err = db.Query("UPDATE `groups` SET `name` = ?, `description` = ? WHERE `id` = ?", group.Name, group.Description, idGr)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(MessageResponse{
+			Message: "Internal error!",
+		})
+		log.Printf(err.Error())
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(MessageResponse{
+		Message: "Group updated!",
+	})
 }
 
 func deleteGroup(w http.ResponseWriter, r *http.Request, id int) {
-	// id := mux.Vars(r)["id"]
+	idGr := mux.Vars(r)["id"]
 
-	// for i, group := range groups {
-	// 	if group.Id == id {
-	// 		groups = append(groups[:i], groups[i+1:]...)
-	// 		fmt.Fprintf(w, "The event with ID %v has been deleted successfully", id)
-	// 	}
-	// }
+	db, dbClose := openConnection()
+	if db == nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(MessageResponse{
+			Message: "Internal error!",
+		})
+		return
+	}
+	defer dbClose()
+
+	_, err := db.Query("DELETE FROM `groups` WHERE `id` = ?", idGr)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(MessageResponse{
+			Message: "Internal error!",
+		})
+		log.Printf(err.Error())
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(MessageResponse{
+		Message: "Group deleted!",
+	})
 }
