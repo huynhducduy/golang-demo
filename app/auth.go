@@ -21,13 +21,13 @@ type Token struct {
 	Expires_at int64  `json:"expires_at"`
 }
 
-func isAuthorized(endpoint func(http.ResponseWriter, *http.Request)) func(http.ResponseWriter, *http.Request) {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func isAuthenticated(endpoint func(http.ResponseWriter, *http.Request, int)) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
 
 		if r.Header["Authorization"] != nil && len(strings.Split(r.Header["Authorization"][0], " ")) == 2 {
 			user_token := strings.Split(r.Header["Authorization"][0], " ")[1]
 
-			token, err := jwt.Parse(user_token, func(token *jwt.Token) (interface{}, error) {
+			token, err := jwt.ParseWithClaims(user_token, &Payload{}, func(token *jwt.Token) (interface{}, error) {
 				return []byte(config.SECRET), nil
 			})
 
@@ -38,41 +38,14 @@ func isAuthorized(endpoint func(http.ResponseWriter, *http.Request)) func(http.R
 			}
 
 			if token.Valid {
-				endpoint(w, r)
+				endpoint(w, r, token.Claims.(*Payload).Id)
 			}
 
 		} else {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-	})
-}
-
-func isAuthenticated(endpoint func(http.ResponseWriter, *http.Request)) func(http.ResponseWriter, *http.Request) {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-		if r.Header["Authorization"] != nil && len(strings.Split(r.Header["Authorization"][0], " ")) == 2 {
-			user_token := strings.Split(r.Header["Authorization"][0], " ")[1]
-
-			token, err := jwt.Parse(user_token, func(token *jwt.Token) (interface{}, error) {
-				return []byte(config.SECRET), nil
-			})
-
-			if err != nil {
-				w.WriteHeader(http.StatusUnauthorized)
-				log.Printf(err.Error())
-				return
-			}
-
-			if token.Valid {
-				endpoint(w, r)
-			}
-
-		} else {
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-	})
+	}
 }
 
 func generateToken(id int) Token {

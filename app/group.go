@@ -1,7 +1,7 @@
 package app
 
 import (
-    "net/http"
+	"net/http"
 )
 
 type Group struct {
@@ -10,7 +10,7 @@ type Group struct {
 	Description *string `json:"description"`
 }
 
-func getAllGroups(w http.ResponseWriter, r *http.Request) {
+func getAllGroups(w http.ResponseWriter, r *http.Request, id int) {
 
 	db, dbClose := openConnection()
 	defer dbClose()
@@ -42,7 +42,7 @@ func getAllGroups(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(groups)
 }
 
-func createGroup(w http.ResponseWriter, r *http.Request) {
+func createGroup(w http.ResponseWriter, r *http.Request, id int) {
 	// var newGroup Group
 	// reqBody, err := ioutil.ReadAll(r.Body)
 	// if err != nil {
@@ -56,7 +56,7 @@ func createGroup(w http.ResponseWriter, r *http.Request) {
 	// json.NewEncoder(w).Encode(newGroup)
 }
 
-func getOneGroup(w http.ResponseWriter, r *http.Request) {
+func getOneGroup(w http.ResponseWriter, r *http.Request, id int) {
 	// id := mux.Vars(r)["id"]
 
 	// for _, group := range groups {
@@ -66,7 +66,7 @@ func getOneGroup(w http.ResponseWriter, r *http.Request) {
 	// }
 }
 
-func updateGroup(w http.ResponseWriter, r *http.Request) {
+func updateGroup(w http.ResponseWriter, r *http.Request, id int) {
 	// id := mux.Vars(r)["id"]
 	// var updatedGroup Group
 
@@ -86,7 +86,7 @@ func updateGroup(w http.ResponseWriter, r *http.Request) {
 	// }
 }
 
-func deleteGroup(w http.ResponseWriter, r *http.Request) {
+func deleteGroup(w http.ResponseWriter, r *http.Request, id int) {
 	// id := mux.Vars(r)["id"]
 
 	// for i, group := range groups {
