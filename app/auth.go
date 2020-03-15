@@ -10,6 +10,10 @@ import (
 	jwt "github.com/dgrijalva/jwt-go"
 )
 
+type Credential struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
 type Payload struct {
 	Id         int
 	Expires_at int64

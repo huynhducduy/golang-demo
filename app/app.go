@@ -8,11 +8,6 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type Credential struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-}
-
 func home(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Welcome home")
 }
