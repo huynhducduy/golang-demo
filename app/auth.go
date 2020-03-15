@@ -82,6 +82,10 @@ func login(w http.ResponseWriter, r *http.Request) {
 		results, err := db.Query("SELECT `id` FROM `users` where `username` = ? AND `password` = ?", credential.Username, credential.Password)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(MessageResponse{
+				Message: "Internal error!",
+			})
+
 			log.Printf(err.Error())
 			return
 		}
@@ -92,6 +96,10 @@ func login(w http.ResponseWriter, r *http.Request) {
 		err = results.Scan(&id)
 		if err != nil {
 			w.WriteHeader(http.StatusNotFound)
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(MessageResponse{
+				Message: "Username and passowrd is incorrect!",
+			})
 			log.Printf(err.Error())
 			return
 		}

@@ -5,3 +5,7 @@ import (
 )
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
+
+type MessageResponse struct {
+	Message string `json:"message"`
+}
