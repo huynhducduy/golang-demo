@@ -28,6 +28,8 @@ func Run() error {
 	router.HandleFunc("/api/v1/group/{id}", isAuthenticated(updateGroup)).Methods("PATCH")
 	router.HandleFunc("/api/v1/group/{id}", isAuthenticated(deleteGroup)).Methods("DELETE")
 
+	router.HandleFunc("/api/v1/me", isAuthenticated(getUserInfo)).Methods("GET")
+
 	log.Printf("Running at port 8080")
 	return http.ListenAndServe(":8080", router)
 }

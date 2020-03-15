@@ -1,6 +1,7 @@
 package app
 
 import (
+	"log"
 	"net/http"
 )
 
@@ -17,12 +18,12 @@ func getAllGroups(w http.ResponseWriter, r *http.Request, id int) {
 
 	err := db.Ping()
 	if err != nil {
-		panic(err.Error())
+		log.Printf(err.Error())
 	}
 
 	results, err := db.Query("SELECT `id`, `name`, `description` FROM `groups`")
 	if err != nil {
-		panic(err.Error())
+		log.Printf(err.Error())
 	}
 
 	var groups []Group
@@ -32,7 +33,7 @@ func getAllGroups(w http.ResponseWriter, r *http.Request, id int) {
 
 		err = results.Scan(&group.Id, &group.Name, &group.Description)
 		if err != nil {
-			panic(err.Error())
+			log.Printf(err.Error())
 		}
 
 		groups = append(groups, group)
