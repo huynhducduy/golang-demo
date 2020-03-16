@@ -12,7 +12,7 @@ type User struct {
 	Role     *int    `json:"role"`
 }
 
-func getUserInfo(w http.ResponseWriter, r *http.Request, id int) {
+func getMe(w http.ResponseWriter, r *http.Request, id int) {
 	db, dbClose := openConnection()
 	defer dbClose()
 
