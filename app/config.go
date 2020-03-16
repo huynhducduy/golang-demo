@@ -1,7 +1,6 @@
 package app
 
 import (
-	"fmt"
 	"log"
 
 	"github.com/spf13/viper"
@@ -32,6 +31,6 @@ func readConfig() {
 
 	err := viper.Unmarshal(&config)
 	if err != nil {
-		fmt.Printf("Unable to decode into struct, %v", err)
+		log.Fatalf("Unable to decode into struct, %v", err)
 	}
 }

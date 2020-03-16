@@ -1,6 +1,7 @@
 package app
 
 import (
+	"errors"
 	"log"
 	"net/http"
 )
@@ -13,7 +14,34 @@ type User struct {
 	IsAdmin  *bool   `json:"is_admin"`
 }
 
-func getMe(w http.ResponseWriter, r *http.Request, user User) {
+func getMe(id int) (*User, error) {
+	db, dbClose, err := openConnection()
+	if err != nil {
+		return nil, err
+	}
+	defer dbClose()
+
+	results, err := db.Query("SELECT `id`, `full_name`, `username`, `group_id`, `role` FROM `users` WHERE `id` = ?", id)
+	if err != nil {
+		return nil, err
+	}
+
+	var user User
+
+	if !results.Next() {
+
+		return nil, errors.New("Invalid user id")
+	} else {
+		err = results.Scan(&user.Id, &user.FullName, &user.Username, &user.GroupId, &user.IsAdmin)
+		if err != nil {
+			return nil, err
+		}
+
+		return &user, nil
+	}
+}
+
+func routerGetMe(w http.ResponseWriter, r *http.Request, user User) {
 	json.NewEncoder(w).Encode(user)
 }
 

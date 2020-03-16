@@ -53,31 +53,11 @@ func isAuthenticated(endpoint func(http.ResponseWriter, *http.Request, User)) fu
 
 		if token.Valid {
 
-			db, dbClose, err := openConnection()
-			if err != nil {
-				responseInternalError(w, err)
-				return
-			}
-			defer dbClose()
+			var user *User
 
-			var user User
-			user.Id = &token.Claims.(*Claims).Id
+			user, err = getMe(token.Claims.(*Claims).Id)
 
-			results, err := db.Query("SELECT `full_name`, `username`, `group_id`, `role` FROM `users` WHERE `id` = ?", user.Id)
-			if err != nil {
-				responseInternalError(w, err)
-				return
-			}
-
-			if results.Next() {
-				err = results.Scan(&user.FullName, &user.Username, &user.GroupId, &user.IsAdmin)
-				if err != nil {
-					responseInternalError(w, err)
-					return
-				}
-
-				endpoint(w, r, user)
-			}
+			endpoint(w, r, *user)
 		}
 
 		responseCustomError(w, http.StatusUnauthorized, "Invalid token!")
@@ -109,37 +89,37 @@ func login(w http.ResponseWriter, r *http.Request) {
 	json.Unmarshal(reqBody, &credential)
 
 	if credential.Username != "" && credential.Password != "" {
-		db, dbClose, err := openConnection()
-		if err != nil {
-			responseInternalError(w, err)
-			return
-		}
-		defer dbClose()
-
-		results, err := db.Query("SELECT `id` FROM `users` where `username` = ? AND `password` = ?", credential.Username, credential.Password)
-		if err != nil {
-			responseInternalError(w, err)
-			return
-		}
-
-		if results.Next() {
-			var id int
-
-			err = results.Scan(&id)
-			if err != nil {
-				responseInternalError(w, err)
-				return
-			}
-
-			token := generateToken(id)
-
-			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(token)
-		} else {
-			responseCustomError(w, http.StatusNotFound, "Username and passowrd is incorrect!")
-			return
-		}
-	} else {
-		w.WriteHeader(http.StatusBadRequest)
+		responseCustomError(w, http.StatusBadRequest, "Username and password must not be empty!")
 	}
+
+	db, dbClose, err := openConnection()
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+	defer dbClose()
+
+	results, err := db.Query("SELECT `id` FROM `users` where `username` = ? AND `password` = ?", credential.Username, credential.Password)
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+
+	if !results.Next() {
+		responseCustomError(w, http.StatusNotFound, "Username and passowrd is incorrect!")
+		return
+	}
+
+	var id int
+
+	err = results.Scan(&id)
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+
+	token := generateToken(id)
+
+	responseOK(w, token)
+	return
 }

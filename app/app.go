@@ -28,7 +28,7 @@ func Run() error {
 	router.HandleFunc("/api/v1/task/{id}", isAuthenticated(updateTask)).Methods("PATCH")
 	router.HandleFunc("/api/v1/task/{id}", isAuthenticated(deleteTask)).Methods("DELETE")
 
-	router.HandleFunc("/api/v1/me", isAuthenticated(getMe)).Methods("GET")
+	router.HandleFunc("/api/v1/me", isAuthenticated(routerGetMe)).Methods("GET")
 
 	log.Printf("Running at port 8080")
 	return http.ListenAndServe(":8080", router)

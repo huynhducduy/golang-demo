@@ -27,3 +27,8 @@ func responseCustomError(w http.ResponseWriter, httpCode int, message string) {
 		Message: message,
 	})
 }
+
+func responseOK(w http.ResponseWriter, data interface{}) {
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(data)
+}
