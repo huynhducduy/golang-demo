@@ -48,7 +48,7 @@ func isAuthenticated(endpoint func(http.ResponseWriter, *http.Request, User)) fu
 
 		if err == nil && token.Valid {
 			var user *User
-			user, err = getMe(token.Claims.(*Claims).Id)
+			user, err = getOneUser(token.Claims.(*Claims).Id)
 			if err != nil {
 				responseInternalError(w, err)
 				return

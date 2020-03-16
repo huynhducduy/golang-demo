@@ -13,27 +13,29 @@ type Group struct {
 	Description *string `json:"description"`
 }
 
-func getManager(id int) (bool, error) {
+func getManager(id int) (int, error) {
 	db, dbClose, err := openConnection()
 	if err != nil {
-		return false, err
+		return 0, err
 	}
 	defer dbClose()
 
 	results, err := db.Query("SELECT `manager_id` FROM `groups` WHERE `id` = ?", id)
 	if err != nil {
-		return false, err
+		return 0, err
 	}
 
 	if results.Next() {
 		var manager_id int
 		err = results.Scan(&manager_id)
 		if err != nil {
-			return false, err
+			return 0, err
 		}
+
+		return manager_id, nil
 	}
 
-	return false, nil
+	return 0, nil
 }
 
 func getAllGroups(w http.ResponseWriter, r *http.Request, user User) {

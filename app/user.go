@@ -14,7 +14,7 @@ type User struct {
 	IsAdmin  *bool   `json:"is_admin"`
 }
 
-func getMe(id int) (*User, error) {
+func getOneUser(id int) (*User, error) {
 	db, dbClose, err := openConnection()
 	if err != nil {
 		return nil, err
@@ -26,18 +26,17 @@ func getMe(id int) (*User, error) {
 		return nil, err
 	}
 
-	var user User
+	if results.Next() {
+		var user User
 
-	if !results.Next() {
-
-		return nil, errors.New("Invalid user id")
-	} else {
 		err = results.Scan(&user.Id, &user.FullName, &user.Username, &user.GroupId, &user.IsAdmin)
 		if err != nil {
 			return nil, err
 		}
 
 		return &user, nil
+	} else {
+		return nil, errors.New("Invalid user id")
 	}
 }
 
@@ -45,7 +44,7 @@ func routerGetMe(w http.ResponseWriter, r *http.Request, user User) {
 	json.NewEncoder(w).Encode(user)
 }
 
-func isManager(id int) (bool, error) {
+func isManagerOf(groupId int, userId int) (bool, error) {
 
 	db, dbClose, err := openConnection()
 	if err != nil {
@@ -53,7 +52,7 @@ func isManager(id int) (bool, error) {
 	}
 	defer dbClose()
 
-	results, err := db.Query("SELECT `manager_id` FROM `groups` WHERE `id` = (SELECT `group_id` FROM `users` where `id` = ?)", id)
+	results, err := db.Query("SELECT `manager_id` FROM `groups` WHERE `id` = ", groupId)
 	if err != nil {
 		log.Printf(err.Error())
 		return false, nil
@@ -61,17 +60,11 @@ func isManager(id int) (bool, error) {
 
 	if results.Next() {
 
-		err = results.Scan(&id)
-		if err != nil {
-			log.Printf(err.Error())
-			return false, nil
-		}
-
 		var manager_id int
 
 		results.Scan(&manager_id)
 
-		if manager_id == id {
+		if manager_id == userId {
 			return true, nil
 		} else {
 			return false, nil
