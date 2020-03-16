@@ -14,7 +14,7 @@ type Credential struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
-type Payload struct {
+type Claims struct {
 	Id         int
 	Expires_at int64
 	jwt.StandardClaims
@@ -42,7 +42,7 @@ func isAuthenticated(endpoint func(http.ResponseWriter, *http.Request, User)) fu
 			return
 		}
 
-		token, err := jwt.ParseWithClaims(user_token, &Payload{}, func(token *jwt.Token) (interface{}, error) {
+		token, err := jwt.ParseWithClaims(user_token, &Claims{}, func(token *jwt.Token) (interface{}, error) {
 			return []byte(config.SECRET), nil
 		})
 
@@ -61,7 +61,7 @@ func isAuthenticated(endpoint func(http.ResponseWriter, *http.Request, User)) fu
 			defer dbClose()
 
 			var user User
-			user.Id = &token.Claims.(*Payload).Id
+			user.Id = &token.Claims.(*Claims).Id
 
 			results, err := db.Query("SELECT `full_name`, `username`, `group_id`, `role` FROM `users` WHERE `id` = ?", user.Id)
 			if err != nil {
@@ -69,23 +69,26 @@ func isAuthenticated(endpoint func(http.ResponseWriter, *http.Request, User)) fu
 				return
 			}
 
-			results.Next()
+			if results.Next() {
+				err = results.Scan(&user.FullName, &user.Username, &user.GroupId, &user.IsAdmin)
+				if err != nil {
+					responseInternalError(w, err)
+					return
+				}
 
-			err = results.Scan(&user.FullName, &user.Username, &user.GroupId, &user.IsAdmin)
-			if err != nil {
-				responseInternalError(w, err)
-				return
+				endpoint(w, r, user)
 			}
-
-			endpoint(w, r, user)
 		}
+
+		responseCustomError(w, http.StatusUnauthorized, "Invalid token!")
+		return
 	}
 }
 
 func generateToken(id int) Token {
 	exp_at := time.Now().Unix() + 604800 // 1 week
 
-	payload := Payload{Id: id, Expires_at: exp_at}
+	payload := Claims{Id: id, Expires_at: exp_at}
 	token := jwt.NewWithClaims(jwt.GetSigningMethod("HS256"), payload)
 	tokenString, _ := token.SignedString([]byte(config.SECRET))
 
@@ -124,7 +127,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 			err = results.Scan(&id)
 			if err != nil {
-				responseCustomError(w, err, http.StatusNotFound, "Username and passowrd is incorrect!")
+				responseInternalError(w, err)
 				return
 			}
 
@@ -132,12 +135,11 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 			w.WriteHeader(http.StatusOK)
 			json.NewEncoder(w).Encode(token)
+		} else {
+			responseCustomError(w, http.StatusNotFound, "Username and passowrd is incorrect!")
+			return
 		}
-
-		responseCustomError(w, err, http.StatusNotFound, "Username and passowrd is incorrect!")
-		return
 	} else {
 		w.WriteHeader(http.StatusBadRequest)
 	}
-
 }

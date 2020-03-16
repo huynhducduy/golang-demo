@@ -21,10 +21,9 @@ func responseInternalError(w http.ResponseWriter, err error) {
 	log.Printf(err.Error())
 }
 
-func responseCustomError(w http.ResponseWriter, err error, httpCode int, message string) {
+func responseCustomError(w http.ResponseWriter, httpCode int, message string) {
 	w.WriteHeader(httpCode)
 	json.NewEncoder(w).Encode(MessageResponse{
 		Message: message,
 	})
-	log.Printf(err.Error())
 }
