@@ -46,18 +46,16 @@ func isAuthenticated(endpoint func(http.ResponseWriter, *http.Request, User)) fu
 			return []byte(config.SECRET), nil
 		})
 
-		if err != nil {
-			responseInternalError(w, err)
-			return
-		}
-
-		if token.Valid {
-
+		if err == nil && token.Valid {
 			var user *User
-
 			user, err = getMe(token.Claims.(*Claims).Id)
+			if err != nil {
+				responseInternalError(w, err)
+				return
+			}
 
 			endpoint(w, r, *user)
+			return
 		}
 
 		responseCustomError(w, http.StatusUnauthorized, "Invalid token!")

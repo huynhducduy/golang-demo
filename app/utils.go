@@ -18,7 +18,7 @@ func responseInternalError(w http.ResponseWriter, err error) {
 	json.NewEncoder(w).Encode(MessageResponse{
 		Message: "Internal error!",
 	})
-	log.Printf(err.Error())
+	log.Panicf(err.Error())
 }
 
 func responseCustomError(w http.ResponseWriter, httpCode int, message string) {

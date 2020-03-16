@@ -21,7 +21,7 @@ func getMe(id int) (*User, error) {
 	}
 	defer dbClose()
 
-	results, err := db.Query("SELECT `id`, `full_name`, `username`, `group_id`, `role` FROM `users` WHERE `id` = ?", id)
+	results, err := db.Query("SELECT `id`, `full_name`, `username`, `group_id`, `is_admin` FROM `users` WHERE `id` = ?", id)
 	if err != nil {
 		return nil, err
 	}

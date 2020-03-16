@@ -1,281 +1,271 @@
 package app
 
-import (
-	"database/sql"
-	"io/ioutil"
-	"log"
-	"net/http"
-	"time"
+// type Task struct {
+// 	Id           *int       `json:"id,omitempty"`
+// 	Name         *string    `json:"name"`        // Updatable
+// 	Description  *string    `json:"description"` // Updatanle
+// 	Report       *string    `json:"report"`      // Updateable
+// 	Assigner     *int       `json:"assigner"`
+// 	Assignee     *int       `json:"assignee"`
+// 	Review       *int       `json:"review"`
+// 	ReviewAt     *time.Time `json:"review_at"`
+// 	Comment      *string    `json:"comment"`
+// 	Confirmation *string    `json:"confirmation"`
+// 	StartAt      *time.Time `json:"start_at"`
+// 	CloseAt      *time.Time `json:"close_at"`
+// 	OpenAt       *time.Time `json:"open_at"`
+// 	OpenFrom     *int       `json:"open_from"`
+// 	Status       *int       `json:"status"`
+// 	IsClosed     *bool      `json:"is_closed"`
+// }
 
-	"github.com/gorilla/mux"
-)
+// func getAllTasks(w http.ResponseWriter, r *http.Request, user User) {
 
-type Task struct {
-	Id           *int       `json:"id,omitempty"`
-	Name         *string    `json:"name"`        // Updatable
-	Description  *string    `json:"description"` // Updatanle
-	Report       *string    `json:"report"`      // Updateable
-	Assigner     *int       `json:"assigner"`
-	Assignee     *int       `json:"assignee"`
-	Review       *int       `json:"review"`
-	ReviewAt     *time.Time `json:"review_at"`
-	Comment      *string    `json:"comment"`
-	Confirmation *string    `json:"confirmation"`
-	StartAt      *time.Time `json:"start_at"`
-	CloseAt      *time.Time `json:"close_at"`
-	OpenAt       *time.Time `json:"open_at"`
-	OpenFrom     *int       `json:"open_from"`
-	Status       *int       `json:"status"`
-	IsClosed     *bool      `json:"is_closed"`
-}
+// 	db, dbClose := openConnection()
+// 	if db == nil {
+// 		w.WriteHeader(http.StatusInternalServerError)
+// 		json.NewEncoder(w).Encode(MessageResponse{
+// 			Message: "Internal error!",
+// 		})
+// 		return
+// 	}
+// 	defer dbClose()
 
-func getAllTasks(w http.ResponseWriter, r *http.Request, user User) {
+// 	results, err := db.Query("SELECT `id`, `name`, `description`,`report`,`assigner`,`assignee`,`review`,`review_at`,`comment`,`confirmation`,`start_at`,`close_at`,`open_at`,`open_from`,`status`,`is_closed` FROM `tasks`")
+// 	if err != nil {
+// 		w.WriteHeader(http.StatusInternalServerError)
+// 		json.NewEncoder(w).Encode(MessageResponse{
+// 			Message: "Internal error!",
+// 		})
+// 		log.Printf(err.Error())
+// 		return
+// 	}
 
-	db, dbClose := openConnection()
-	if db == nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(MessageResponse{
-			Message: "Internal error!",
-		})
-		return
-	}
-	defer dbClose()
+// 	var tasks []Task
 
-	results, err := db.Query("SELECT `id`, `name`, `description`,`report`,`assigner`,`assignee`,`review`,`review_at`,`comment`,`confirmation`,`start_at`,`close_at`,`open_at`,`open_from`,`status`,`is_closed` FROM `tasks`")
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(MessageResponse{
-			Message: "Internal error!",
-		})
-		log.Printf(err.Error())
-		return
-	}
+// 	for results.Next() {
+// 		var task Task
 
-	var tasks []Task
+// 		err = results.Scan(&task.Id, &task.Name, &task.Description, &task.Report, &task.Assigner, &task.Assignee, &task.Review, &task.ReviewAt, &task.Comment, &task.Confirmation, &task.StartAt, &task.OpenAt, &task.OpenAt, &task.OpenFrom, &task.Status, &task.IsClosed)
+// 		if err != nil {
+// 			w.WriteHeader(http.StatusInternalServerError)
+// 			json.NewEncoder(w).Encode(MessageResponse{
+// 				Message: "Internal error!",
+// 			})
+// 			log.Printf(err.Error())
+// 			return
+// 		}
 
-	for results.Next() {
-		var task Task
+// 		tasks = append(tasks, task)
 
-		err = results.Scan(&task.Id, &task.Name, &task.Description, &task.Report, &task.Assigner, &task.Assignee, &task.Review, &task.ReviewAt, &task.Comment, &task.Confirmation, &task.StartAt, &task.OpenAt, &task.OpenAt, &task.OpenFrom, &task.Status, &task.IsClosed)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(MessageResponse{
-				Message: "Internal error!",
-			})
-			log.Printf(err.Error())
-			return
-		}
+// 	}
 
-		tasks = append(tasks, task)
+// 	json.NewEncoder(w).Encode(tasks)
+// }
 
-	}
+// func listCanBeOpenedFrom(w http.ResponseWriter, r *http.Request, user User) {
+// 	db, dbClose, err := openConnection()
+// 	if err != nil {
+// 		responseInternalError(w, err)
+// 		return
+// 	}
+// 	defer dbClose()
 
-	json.NewEncoder(w).Encode(tasks)
-}
+// 	query := "SELECT `id`, `name` FROM `tasks` WHERE (`is_closed` = TRUE AND `status` != 4) OR `status` != 5"
 
-func listCanBeOpenedFrom(w http.ResponseWriter, r *http.Request, user User) {
-	db, dbClose, err := openConnection()
-	if err != nil {
-		responseInternalError(w, err)
-		return
-	}
-	defer dbClose()
+// 	if isManager(*user.Id) {
+// 		results, err = db.Query(query+" `assigner` = ?", user.Id)
+// 	} else {
 
-	query := "SELECT `id`, `name` FROM `tasks` WHERE (`is_closed` = TRUE AND `status` != 4) OR `status` != 5"
+// 		results, err = db.Query(query+" `assigner` = ?", user.Id)
+// 	}
+// }
 
-	if isManager(*user.Id) {
-		results, err = db.Query(query+" `assigner` = ?", user.Id)
-	} else {
+// func listAssignableUsers(w http.ResponseWriter, r *http.Request, user User) {
+// 	db, dbClose, err := openConnection()
+// 	if err != nil {
+// 		responseInternalError(w, err)
+// 		return
+// 	}
+// 	defer dbClose()
 
-		results, err = db.Query(query+" `assigner` = ?", user.Id)
-	}
-}
+// 	// fmt.Printf("%+v\n", *user.GroupId)
 
-func listAssignableUsers(w http.ResponseWriter, r *http.Request, user User) {
-	db, dbClose, err := openConnection()
-	if err != nil {
-		responseInternalError(w, err)
-		return
-	}
-	defer dbClose()
+// 	var results *sql.Rows
 
-	// fmt.Printf("%+v\n", *user.GroupId)
+// 	if *user.IsAdmin == true {
+// 		results, err = db.Query("SELECT `id`, `full_name`, `username`, `group_id`, `role` FROM `users`")
+// 	} else {
+// 		results, err = db.Query("SELECT `id`, `full_name`, `username`, `group_id`, `role` FROM `users` WHERE `group_id` = ?", user.GroupId)
+// 	}
+// 	if err != nil {
+// 		responseInternalError(w, err)
+// 		return
+// 	}
 
-	var results *sql.Rows
+// 	var users []User
 
-	if *user.IsAdmin == true {
-		results, err = db.Query("SELECT `id`, `full_name`, `username`, `group_id`, `role` FROM `users`")
-	} else {
-		results, err = db.Query("SELECT `id`, `full_name`, `username`, `group_id`, `role` FROM `users` WHERE `group_id` = ?", user.GroupId)
-	}
-	if err != nil {
-		responseInternalError(w, err)
-		return
-	}
+// 	for results.Next() {
+// 		var user User
 
-	var users []User
+// 		err = results.Scan(&user.Id, &user.FullName, &user.Username, &user.GroupId, &user.Role)
+// 		if err != nil {
+// 			responseInternalError(w, err)
+// 			return
+// 		}
 
-	for results.Next() {
-		var user User
+// 		users = append(users, user)
 
-		err = results.Scan(&user.Id, &user.FullName, &user.Username, &user.GroupId, &user.Role)
-		if err != nil {
-			responseInternalError(w, err)
-			return
-		}
+// 	}
 
-		users = append(users, user)
+// 	json.NewEncoder(w).Encode(users)
+// }
 
-	}
+// func createTask(w http.ResponseWriter, r *http.Request, user User) {
+// 	var newTask Task
+// 	reqBody, err := ioutil.ReadAll(r.Body)
+// 	if err != nil {
+// 		responseInternalError(w, err)
+// 		return
+// 	}
 
-	json.NewEncoder(w).Encode(users)
-}
+// 	json.Unmarshal(reqBody, &newTask)
 
-func createTask(w http.ResponseWriter, r *http.Request, user User) {
-	var newTask Task
-	reqBody, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		responseInternalError(w, err)
-		return
-	}
+// 	if newTask.Name == nil && newTask.Description == nil {
+// 		w.WriteHeader(http.StatusBadRequest)
+// 		json.NewEncoder(w).Encode(MessageResponse{
+// 			Message: "Task's name and task's description must not be empty!",
+// 		})
+// 		return
+// 	}
 
-	json.Unmarshal(reqBody, &newTask)
+// 	var status int = 1
 
-	if newTask.Name == nil && newTask.Description == nil {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(MessageResponse{
-			Message: "Task's name and task's description must not be empty!",
-		})
-		return
-	}
+// 	if *user.Role != 2 {
+// 		newTask.Status = &status
+// 		newTask.Assigner = user.Id
+// 		if newTask.Assignee == nil {
+// 			w.WriteHeader(http.StatusBadRequest)
+// 			json.NewEncoder(w).Encode(MessageResponse{
+// 				Message: "Assignee must not be empty!",
+// 			})
+// 			return
+// 		}
+// 	} else {
+// 		newTask.Assignee = user.Id
+// 	}
 
-	var status int = 1
+// 	db, dbClose, err := openConnection()
+// 	if err != nil {
+// 		responseInternalError(w, err)
+// 		return
+// 	}
+// 	defer dbClose()
 
-	if *user.Role != 2 {
-		newTask.Status = &status
-		newTask.Assigner = user.Id
-		if newTask.Assignee == nil {
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(MessageResponse{
-				Message: "Assignee must not be empty!",
-			})
-			return
-		}
-	} else {
-		newTask.Assignee = user.Id
-	}
+// 	_, err = db.Query("INSERT INTO `Tasks`(`name`, `description`,`assignee`,`status`,`assigner`) VALUES(?,?,?,?,?)", newTask.Name, newTask.Description, newTask.Assignee, newTask.Status)
+// 	if err != nil {
+// 		responseInternalError(w, err)
+// 		return
+// 	}
 
-	db, dbClose, err := openConnection()
-	if err != nil {
-		responseInternalError(w, err)
-		return
-	}
-	defer dbClose()
+// 	w.WriteHeader(http.StatusCreated)
+// 	json.NewEncoder(w).Encode(MessageResponse{
+// 		Message: "New Task created successfully!",
+// 	})
+// }
 
-	_, err = db.Query("INSERT INTO `Tasks`(`name`, `description`,`assignee`,`status`,`assigner`) VALUES(?,?,?,?,?)", newTask.Name, newTask.Description, newTask.Assignee, newTask.Status)
-	if err != nil {
-		responseInternalError(w, err)
-		return
-	}
+// func getOneTask(w http.ResponseWriter, r *http.Request, user User) {
+// 	idGr := mux.Vars(r)["id"]
 
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(MessageResponse{
-		Message: "New Task created successfully!",
-	})
-}
+// 	db, dbClose, err := openConnection()
+// 	if err != nil {
+// 		responseInternalError(w, err)
+// 		return
+// 	}
+// 	defer dbClose()
 
-func getOneTask(w http.ResponseWriter, r *http.Request, user User) {
-	idGr := mux.Vars(r)["id"]
+// 	results, err := db.Query("SELECT `id`, `name`, `description`,`report`,`assigner`,`assignee`,`review`,`review_at`,`comment`,`confirmation`,`start_at`,`close_at`,`open_at`,`open_from`,`status`,`is_closed` FROM `tasks` WHERE `id` = ?", idGr)
+// 	if err != nil {
+// 		responseInternalError(w, err)
+// 		return
+// 	}
 
-	db, dbClose, err := openConnection()
-	if err != nil {
-		responseInternalError(w, err)
-		return
-	}
-	defer dbClose()
+// 	var task Task
 
-	results, err := db.Query("SELECT `id`, `name`, `description`,`report`,`assigner`,`assignee`,`review`,`review_at`,`comment`,`confirmation`,`start_at`,`close_at`,`open_at`,`open_from`,`status`,`is_closed` FROM `tasks` WHERE `id` = ?", idGr)
-	if err != nil {
-		responseInternalError(w, err)
-		return
-	}
+// 	results.Next()
 
-	var task Task
+// 	err = results.Scan(&task.Id, &task.Name, &task.Description, &task.Report, &task.Assigner, &task.Assignee, &task.Review, &task.ReviewAt, &task.Comment, &task.Confirmation, &task.StartAt, &task.OpenAt, &task.OpenAt, &task.OpenFrom, &task.Status, &task.IsClosed)
+// 	if err != nil {
+// 		responseInternalError(w, err)
+// 		return
+// 	}
 
-	results.Next()
+// 	w.WriteHeader(http.StatusOK)
+// 	json.NewEncoder(w).Encode(task)
+// }
 
-	err = results.Scan(&task.Id, &task.Name, &task.Description, &task.Report, &task.Assigner, &task.Assignee, &task.Review, &task.ReviewAt, &task.Comment, &task.Confirmation, &task.StartAt, &task.OpenAt, &task.OpenAt, &task.OpenFrom, &task.Status, &task.IsClosed)
-	if err != nil {
-		responseInternalError(w, err)
-		return
-	}
+// func updateTask(w http.ResponseWriter, r *http.Request, user User) {
+// 	idGr := mux.Vars(r)["id"]
 
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(task)
-}
+// 	var task Task
 
-func updateTask(w http.ResponseWriter, r *http.Request, user User) {
-	idGr := mux.Vars(r)["id"]
+// 	reqBody, err := ioutil.ReadAll(r.Body)
+// 	if err != nil {
+// 		responseInternalError(w, err)
+// 		return
+// 	}
 
-	var task Task
+// 	json.Unmarshal(reqBody, &task)
 
-	reqBody, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		responseInternalError(w, err)
-		return
-	}
+// 	if task.Name == nil {
+// 		w.WriteHeader(http.StatusBadRequest)
+// 		json.NewEncoder(w).Encode(MessageResponse{
+// 			Message: "Task's name must not be empty!",
+// 		})
+// 		return
+// 	}
 
-	json.Unmarshal(reqBody, &task)
+// 	db, dbClose, err := openConnection()
+// 	if err != nil {
+// 		responseInternalError(w, err)
+// 		return
+// 	}
+// 	defer dbClose()
 
-	if task.Name == nil {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(MessageResponse{
-			Message: "Task's name must not be empty!",
-		})
-		return
-	}
+// 	if *user.Role == 2 {
+// 		_, err = db.Query("UPDATE `tasks` SET `name` = ?, `description` = ?, `report` = ? WHERE `id` = ?", task.Name, task.Description, task.Report, idGr)
+// 	} else {
+// 		_, err = db.Query("UPDATE `tasks` SET `report` = ? WHERE `id` = ?", task.Report, idGr)
+// 	}
+// 	if err != nil {
+// 		responseInternalError(w, err)
+// 		return
+// 	}
 
-	db, dbClose, err := openConnection()
-	if err != nil {
-		responseInternalError(w, err)
-		return
-	}
-	defer dbClose()
+// 	w.WriteHeader(http.StatusOK)
+// 	json.NewEncoder(w).Encode(MessageResponse{
+// 		Message: "Task updated!",
+// 	})
+// }
 
-	if *user.Role == 2 {
-		_, err = db.Query("UPDATE `tasks` SET `name` = ?, `description` = ?, `report` = ? WHERE `id` = ?", task.Name, task.Description, task.Report, idGr)
-	} else {
-		_, err = db.Query("UPDATE `tasks` SET `report` = ? WHERE `id` = ?", task.Report, idGr)
-	}
-	if err != nil {
-		responseInternalError(w, err)
-		return
-	}
+// func deleteTask(w http.ResponseWriter, r *http.Request, user User) {
+// 	idGr := mux.Vars(r)["id"]
 
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(MessageResponse{
-		Message: "Task updated!",
-	})
-}
+// 	db, dbClose, err := openConnection()
+// 	if err != nil {
+// 		responseInternalError(w, err)
+// 		return
+// 	}
+// 	defer dbClose()
 
-func deleteTask(w http.ResponseWriter, r *http.Request, user User) {
-	idGr := mux.Vars(r)["id"]
+// 	_, err = db.Query("DELETE FROM `tasks` WHERE `id` = ?", idGr)
+// 	if err != nil {
+// 		responseInternalError(w, err)
+// 		return
+// 	}
 
-	db, dbClose, err := openConnection()
-	if err != nil {
-		responseInternalError(w, err)
-		return
-	}
-	defer dbClose()
-
-	_, err = db.Query("DELETE FROM `tasks` WHERE `id` = ?", idGr)
-	if err != nil {
-		responseInternalError(w, err)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(MessageResponse{
-		Message: "Task deleted!",
-	})
-}
+// 	w.WriteHeader(http.StatusOK)
+// 	json.NewEncoder(w).Encode(MessageResponse{
+// 		Message: "Task deleted!",
+// 	})
+// }
