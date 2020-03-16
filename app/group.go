@@ -14,7 +14,7 @@ type Group struct {
 	Description *string `json:"description"`
 }
 
-func getAllGroups(w http.ResponseWriter, r *http.Request, id int) {
+func getAllGroups(w http.ResponseWriter, r *http.Request, user User) {
 
 	db, dbClose := openConnection()
 	if db == nil {
@@ -58,7 +58,7 @@ func getAllGroups(w http.ResponseWriter, r *http.Request, id int) {
 	json.NewEncoder(w).Encode(groups)
 }
 
-func createGroup(w http.ResponseWriter, r *http.Request, id int) {
+func createGroup(w http.ResponseWriter, r *http.Request, user User) {
 	var newGroup Group
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -106,7 +106,7 @@ func createGroup(w http.ResponseWriter, r *http.Request, id int) {
 	})
 }
 
-func getOneGroup(w http.ResponseWriter, r *http.Request, id int) {
+func getOneGroup(w http.ResponseWriter, r *http.Request, user User) {
 	idGr := mux.Vars(r)["id"]
 
 	db, dbClose := openConnection()
@@ -147,7 +147,7 @@ func getOneGroup(w http.ResponseWriter, r *http.Request, id int) {
 	json.NewEncoder(w).Encode(group)
 }
 
-func updateGroup(w http.ResponseWriter, r *http.Request, id int) {
+func updateGroup(w http.ResponseWriter, r *http.Request, user User) {
 	idGr := mux.Vars(r)["id"]
 
 	var group Group
@@ -198,7 +198,7 @@ func updateGroup(w http.ResponseWriter, r *http.Request, id int) {
 	})
 }
 
-func deleteGroup(w http.ResponseWriter, r *http.Request, id int) {
+func deleteGroup(w http.ResponseWriter, r *http.Request, user User) {
 	idGr := mux.Vars(r)["id"]
 
 	db, dbClose := openConnection()

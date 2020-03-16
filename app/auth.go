@@ -25,7 +25,7 @@ type Token struct {
 	Expires_at int64  `json:"expires_at"`
 }
 
-func isAuthenticated(endpoint func(http.ResponseWriter, *http.Request, int)) func(http.ResponseWriter, *http.Request) {
+func isAuthenticated(endpoint func(http.ResponseWriter, *http.Request, User)) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		if r.Header["Authorization"] != nil && len(strings.Split(r.Header["Authorization"][0], " ")) == 2 {
@@ -42,7 +42,35 @@ func isAuthenticated(endpoint func(http.ResponseWriter, *http.Request, int)) fun
 			}
 
 			if token.Valid {
-				endpoint(w, r, token.Claims.(*Payload).Id)
+
+				db, dbClose := openConnection()
+				if db == nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					json.NewEncoder(w).Encode(MessageResponse{
+						Message: "Internal error!",
+					})
+					return
+				}
+				defer dbClose()
+
+				var user User
+				user.Id = &token.Claims.(*Payload).Id
+
+				results, err := db.Query("SELECT `full_name`, `username`, `group_id`, `role` FROM `users` WHERE `id` = ?", user.Id)
+				if err != nil {
+					log.Printf(err.Error())
+					return
+				}
+
+				results.Next()
+
+				err = results.Scan(&user.FullName, &user.Username, &user.GroupId, &user.Role)
+				if err != nil {
+					log.Printf(err.Error())
+					return
+				}
+
+				endpoint(w, r, user)
 			}
 
 		} else {
