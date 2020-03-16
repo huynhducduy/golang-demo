@@ -38,7 +38,7 @@ func isAuthenticated(endpoint func(http.ResponseWriter, *http.Request, User)) fu
 
 		user_token, err := getToken(r)
 		if err != nil {
-			responseInternalError(w, err)
+			responseCustomError(w, http.StatusUnauthorized, err.Error())
 			return
 		}
 

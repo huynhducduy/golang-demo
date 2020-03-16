@@ -165,7 +165,7 @@ func createTask(w http.ResponseWriter, r *http.Request, user User) {
 
 	isMng := *user.GroupId == mng
 
-	if isMng {
+	if *user.IsAdmin || isMng {
 		newTask.Status = &status
 		newTask.Assigner = user.Id
 		if newTask.Assignee == nil {
@@ -224,7 +224,7 @@ func getOneTask(id int) (*Task, error) {
 
 func routerGetOneTask(w http.ResponseWriter, r *http.Request, user User) {
 	id, err := strconv.Atoi(mux.Vars(r)["id"])
-	if err == nil {
+	if err != nil {
 		responseCustomError(w, http.StatusBadRequest, "Id must be an integer!")
 		return
 	}
@@ -241,7 +241,7 @@ func routerGetOneTask(w http.ResponseWriter, r *http.Request, user User) {
 
 func updateTask(w http.ResponseWriter, r *http.Request, user User) {
 	id, err := strconv.Atoi(mux.Vars(r)["id"])
-	if err == nil {
+	if err != nil {
 		responseCustomError(w, http.StatusBadRequest, "Id must be an integer!")
 		return
 	}
@@ -273,7 +273,7 @@ func updateTask(w http.ResponseWriter, r *http.Request, user User) {
 
 	thisTask, err := getOneTask(id)
 
-	if *user.IsAdmin || *thisTask.Assigner == *user.Id {
+	if *thisTask.Assigner == *user.Id {
 		_, err = db.Query("UPDATE `tasks` SET `name` = ?, `description` = ?, `report` = ? WHERE `id` = ?", taskToUpdate.Name, taskToUpdate.Description, taskToUpdate.Report, id)
 	} else {
 		_, err = db.Query("UPDATE `tasks` SET `report` = ? WHERE `id` = ?", taskToUpdate.Report, id)
