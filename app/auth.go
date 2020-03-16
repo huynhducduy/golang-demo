@@ -1,8 +1,8 @@
 package app
 
 import (
+	"errors"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -25,57 +25,59 @@ type Token struct {
 	Expires_at int64  `json:"expires_at"`
 }
 
+func getToken(r *http.Request) (string, error) {
+	if r.Header["Authorization"] != nil && len(strings.Split(r.Header["Authorization"][0], " ")) == 2 {
+		return strings.Split(r.Header["Authorization"][0], " ")[1], nil
+	} else {
+		return "", errors.New("No bearer token")
+	}
+}
+
 func isAuthenticated(endpoint func(http.ResponseWriter, *http.Request, User)) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		if r.Header["Authorization"] != nil && len(strings.Split(r.Header["Authorization"][0], " ")) == 2 {
-			user_token := strings.Split(r.Header["Authorization"][0], " ")[1]
+		user_token, err := getToken(r)
+		if err != nil {
+			responseInternalError(w, err)
+			return
+		}
 
-			token, err := jwt.ParseWithClaims(user_token, &Payload{}, func(token *jwt.Token) (interface{}, error) {
-				return []byte(config.SECRET), nil
-			})
+		token, err := jwt.ParseWithClaims(user_token, &Payload{}, func(token *jwt.Token) (interface{}, error) {
+			return []byte(config.SECRET), nil
+		})
 
+		if err != nil {
+			responseInternalError(w, err)
+			return
+		}
+
+		if token.Valid {
+
+			db, dbClose, err := openConnection()
 			if err != nil {
-				w.WriteHeader(http.StatusUnauthorized)
-				log.Printf(err.Error())
+				responseInternalError(w, err)
+				return
+			}
+			defer dbClose()
+
+			var user User
+			user.Id = &token.Claims.(*Payload).Id
+
+			results, err := db.Query("SELECT `full_name`, `username`, `group_id`, `role` FROM `users` WHERE `id` = ?", user.Id)
+			if err != nil {
+				responseInternalError(w, err)
 				return
 			}
 
-			if token.Valid {
+			results.Next()
 
-				db, dbClose := openConnection()
-				if db == nil {
-					w.WriteHeader(http.StatusInternalServerError)
-					json.NewEncoder(w).Encode(MessageResponse{
-						Message: "Internal error!",
-					})
-					return
-				}
-				defer dbClose()
-
-				var user User
-				user.Id = &token.Claims.(*Payload).Id
-
-				results, err := db.Query("SELECT `full_name`, `username`, `group_id`, `role` FROM `users` WHERE `id` = ?", user.Id)
-				if err != nil {
-					log.Printf(err.Error())
-					return
-				}
-
-				results.Next()
-
-				err = results.Scan(&user.FullName, &user.Username, &user.GroupId, &user.Role)
-				if err != nil {
-					log.Printf(err.Error())
-					return
-				}
-
-				endpoint(w, r, user)
+			err = results.Scan(&user.FullName, &user.Username, &user.GroupId, &user.IsAdmin)
+			if err != nil {
+				responseInternalError(w, err)
+				return
 			}
 
-		} else {
-			w.WriteHeader(http.StatusUnauthorized)
-			return
+			endpoint(w, r, user)
 		}
 	}
 }
@@ -97,50 +99,45 @@ func login(w http.ResponseWriter, r *http.Request) {
 	var credential Credential
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		panic(err.Error())
+		responseInternalError(w, err)
+		return
 	}
 
 	json.Unmarshal(reqBody, &credential)
 
 	if credential.Username != "" && credential.Password != "" {
-		db, dbClose := openConnection()
+		db, dbClose, err := openConnection()
+		if err != nil {
+			responseInternalError(w, err)
+			return
+		}
 		defer dbClose()
 
 		results, err := db.Query("SELECT `id` FROM `users` where `username` = ? AND `password` = ?", credential.Username, credential.Password)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(MessageResponse{
-				Message: "Internal error!",
-			})
-
-			log.Printf(err.Error())
+			responseInternalError(w, err)
 			return
 		}
 
-		results.Next()
-		var id int
+		if results.Next() {
+			var id int
 
-		err = results.Scan(&id)
-		if err != nil {
-			w.WriteHeader(http.StatusNotFound)
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(MessageResponse{
-				Message: "Username and passowrd is incorrect!",
-			})
-			log.Printf(err.Error())
-			return
+			err = results.Scan(&id)
+			if err != nil {
+				responseCustomError(w, err, http.StatusNotFound, "Username and passowrd is incorrect!")
+				return
+			}
+
+			token := generateToken(id)
+
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(token)
 		}
 
-		token := generateToken(id)
-
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(token)
+		responseCustomError(w, err, http.StatusNotFound, "Username and passowrd is incorrect!")
+		return
 	} else {
 		w.WriteHeader(http.StatusBadRequest)
 	}
 
-}
-
-func register(w http.ResponseWriter, r *http.Request) {
 }

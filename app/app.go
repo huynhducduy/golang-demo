@@ -1,16 +1,11 @@
 package app
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 
 	"github.com/gorilla/mux"
 )
-
-func home(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Welcome home")
-}
 
 func Run() error {
 
@@ -18,9 +13,7 @@ func Run() error {
 
 	router := mux.NewRouter()
 
-	router.HandleFunc("/", home)
 	router.HandleFunc("/api/v1/auth/login", login).Methods("POST")
-	router.HandleFunc("/api/v1/auth/register", register).Methods("POST")
 
 	router.HandleFunc("/api/v1/group", isAuthenticated(getAllGroups)).Methods("GET")
 	router.HandleFunc("/api/v1/group", isAuthenticated(createGroup)).Methods("POST")
