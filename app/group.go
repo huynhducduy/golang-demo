@@ -1,41 +1,19 @@
 package app
 
 import (
+	"errors"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 
 	"github.com/gorilla/mux"
 )
 
 type Group struct {
-	Id          *string `json:"id,omitempty"`
+	Id          *int    `json:"id,omitempty"`
 	Name        *string `json:"name"`
 	Description *string `json:"description"`
-}
-
-func getManager(id int) (int, error) {
-	db, dbClose, err := openConnection()
-	if err != nil {
-		return 0, err
-	}
-	defer dbClose()
-
-	results, err := db.Query("SELECT `manager_id` FROM `groups` WHERE `id` = ?", id)
-	if err != nil {
-		return 0, err
-	}
-
-	if results.Next() {
-		var manager_id int
-		err = results.Scan(&manager_id)
-		if err != nil {
-			return 0, err
-		}
-
-		return manager_id, nil
-	}
-
-	return 0, nil
+	ManagerId   *int    `json:"manager_id"`
 }
 
 // -----------------------------------------------------------------------------
@@ -114,37 +92,46 @@ func createGroup(w http.ResponseWriter, r *http.Request, user User) {
 	return
 }
 
-func getOneGroup(w http.ResponseWriter, r *http.Request, user User) {
-	idGr := mux.Vars(r)["id"]
+func getOneGroup(id int) (*Group, error) {
 
 	db, dbClose, err := openConnection()
 	if err != nil {
-		responseInternalError(w, err)
-		return
+		return nil, err
 	}
 	defer dbClose()
 
-	results, err := db.Query("SELECT `id`,`name`,`description` FROM `groups` WHERE `id` = ?", idGr)
+	results, err := db.Query("SELECT `id`,`name`,`description` FROM `groups` WHERE `id` = ?", id)
+	if err != nil {
+		return nil, err
+	}
+
+	var group *Group
+
+	if results.Next() {
+		err = results.Scan(group.Id, group.Name, group.Description)
+		if err != nil {
+			return nil, err
+		}
+		return group, nil
+	}
+
+	return nil, errors.New("Invalid group id")
+}
+
+func routerGetOneGroup(w http.ResponseWriter, r *http.Request, user User) {
+	id, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		responseCustomError(w, http.StatusBadRequest, "Id must be an integer!")
+		return
+	}
+
+	group, err := getOneGroup(id)
 	if err != nil {
 		responseInternalError(w, err)
 		return
 	}
 
-	var group Group
-
-	if results.Next() {
-		err = results.Scan(&group.Id, &group.Name, &group.Description)
-		if err != nil {
-			responseInternalError(w, err)
-			return
-		} else {
-			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(group)
-			return
-		}
-	}
-
-	responseCustomError(w, http.StatusNotFound, "Group not found")
+	responseOK(w, group)
 	return
 }
 

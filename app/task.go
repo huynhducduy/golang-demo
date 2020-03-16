@@ -72,13 +72,21 @@ func getReopenableTasks(w http.ResponseWriter, r *http.Request, user User) {
 	var mng int
 	var results *sql.Rows
 
-	if !*user.IsAdmin || user.GroupId != nil {
-		mng, err = getManager(*user.GroupId)
+	if !*user.IsAdmin {
+		if user.GroupId != nil {
+			group, err := getOneGroup(*user.GroupId)
+			if err != nil {
+				responseInternalError(w, err)
+				return
+			}
 
-		results, err = db.Query(query+" `assigner` = ?", mng)
-		if err != nil {
-			responseInternalError(w, err)
-			return
+			if *group.ManagerId == *user.Id {
+				results, err = db.Query(query+" `assigner` = ?", mng)
+				if err != nil {
+					responseInternalError(w, err)
+					return
+				}
+			}
 		}
 	} else {
 		results, err = db.Query(query)
@@ -146,6 +154,57 @@ func getAssignableUsers(w http.ResponseWriter, r *http.Request, user User) {
 	json.NewEncoder(w).Encode(users)
 }
 
+func checkTask(w http.ResponseWriter, r *http.Request, user User) {
+	id, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		responseCustomError(w, http.StatusBadRequest, "Id must be an integer!")
+		return
+	}
+
+	task, err := getOneTask(id)
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+
+	if !*user.IsAdmin {
+		if *task.Assigner != *user.Id {
+			responseCustomError(w, http.StatusUnauthorized, "You cannot approve this task!")
+			return
+		}
+	}
+
+	logg(task)
+
+	if *task.Status != 0 {
+		responseCustomError(w, http.StatusBadRequest, "You can only approve new tasks!")
+		return
+	}
+
+	db, dbClose, err := openConnection()
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+	defer dbClose()
+
+	attr := "is_closed"
+	if r.URL.Query().Get("to") != "1" {
+		attr = "status"
+	}
+
+	_, err = db.Query("UPDATE `tasks` SET `"+attr+"` = 1 WHERE `id` = ?", id)
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+
+	responseOK(w, "Task checked!")
+	return
+}
+
+// -----------------------------------------------------------------------------
+
 func getAllTasks(w http.ResponseWriter, r *http.Request, user User) {
 
 	db, dbClose, err := openConnection()
@@ -194,24 +253,29 @@ func createTask(w http.ResponseWriter, r *http.Request, user User) {
 		return
 	}
 
-	var status int = 1
+	if !*user.IsAdmin {
+		if user.GroupId != nil {
+			group, err := getOneGroup(*user.GroupId)
 
-	var mng int
+			if err != nil {
+				responseInternalError(w, err)
+				return
+			}
 
-	mng, err = getManager(*user.GroupId)
-
-	isMng := *user.GroupId == mng
-
-	if *user.IsAdmin || isMng {
-		newTask.Status = &status
-		newTask.Assigner = user.Id
-		if newTask.Assignee == nil {
-			responseCustomError(w, http.StatusBadRequest, "Assignee must not be empty!")
-			return
+			if *group.ManagerId != *user.Id {
+				newTask.Assignee = user.Id
+				goto insert
+			}
 		}
-	} else {
-		newTask.Assignee = user.Id
 	}
+
+	*newTask.Assigner = *user.Id
+	if newTask.Assignee == nil {
+		responseCustomError(w, http.StatusBadRequest, "Assignee must not be empty!")
+		return
+	}
+
+insert:
 
 	db, dbClose, err := openConnection()
 	if err != nil {
