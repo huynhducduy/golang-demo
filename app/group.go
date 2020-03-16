@@ -38,6 +38,8 @@ func getManager(id int) (int, error) {
 	return 0, nil
 }
 
+// -----------------------------------------------------------------------------
+
 func getAllGroups(w http.ResponseWriter, r *http.Request, user User) {
 
 	db, dbClose, err := openConnection()
@@ -53,7 +55,7 @@ func getAllGroups(w http.ResponseWriter, r *http.Request, user User) {
 		return
 	}
 
-	var groups []Group
+	groups := make([]Group, 0)
 
 	for results.Next() {
 		var group Group

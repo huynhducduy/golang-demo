@@ -22,7 +22,8 @@ func Run() error {
 	router.HandleFunc("/api/v1/group/{id:[0-9]+}", isAuthenticated(deleteGroup)).Methods("DELETE")
 
 	router.HandleFunc("/api/v1/task", isAuthenticated(getAllTasks)).Methods("GET")
-	router.HandleFunc("/api/v1/task/assignable", isAuthenticated(listAssignableUsers)).Methods("GET")
+	router.HandleFunc("/api/v1/task/assignable", isAuthenticated(getAssignableUsers)).Methods("GET")
+	router.HandleFunc("/api/v1/task/reopenable", isAuthenticated(getReopenableTasks)).Methods("GET")
 	router.HandleFunc("/api/v1/task", isAuthenticated(createTask)).Methods("POST")
 	router.HandleFunc("/api/v1/task/{id:[0-9]+}", isAuthenticated(routerGetOneTask)).Methods("GET")
 	router.HandleFunc("/api/v1/task/{id:[0-9]+}", isAuthenticated(updateTask)).Methods("PATCH")

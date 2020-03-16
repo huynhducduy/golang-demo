@@ -2,7 +2,6 @@ package app
 
 import (
 	"errors"
-	"log"
 	"net/http"
 )
 
@@ -44,32 +43,32 @@ func routerGetMe(w http.ResponseWriter, r *http.Request, user User) {
 	json.NewEncoder(w).Encode(user)
 }
 
-func isManagerOf(groupId int, userId int) (bool, error) {
+// func isManagerOf(groupId int, userId int) (bool, error) {
 
-	db, dbClose, err := openConnection()
-	if err != nil {
-		return false, err
-	}
-	defer dbClose()
+// 	db, dbClose, err := openConnection()
+// 	if err != nil {
+// 		return false, err
+// 	}
+// 	defer dbClose()
 
-	results, err := db.Query("SELECT `manager_id` FROM `groups` WHERE `id` = ", groupId)
-	if err != nil {
-		log.Printf(err.Error())
-		return false, nil
-	}
+// 	results, err := db.Query("SELECT `manager_id` FROM `groups` WHERE `id` = ", groupId)
+// 	if err != nil {
+// 		log.Printf(err.Error())
+// 		return false, nil
+// 	}
 
-	if results.Next() {
+// 	if results.Next() {
 
-		var manager_id int
+// 		var manager_id int
 
-		results.Scan(&manager_id)
+// 		results.Scan(&manager_id)
 
-		if manager_id == userId {
-			return true, nil
-		} else {
-			return false, nil
-		}
-	}
+// 		if manager_id == userId {
+// 			return true, nil
+// 		} else {
+// 			return false, nil
+// 		}
+// 	}
 
-	return false, nil
-}
+// 	return false, nil
+// }

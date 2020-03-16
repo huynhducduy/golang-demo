@@ -30,40 +30,36 @@ type Task struct {
 	IsClosed     *bool      `json:"is_closed"`
 }
 
-func getAllTasks(w http.ResponseWriter, r *http.Request, user User) {
-
+func getOneTask(id int) (*Task, error) {
 	db, dbClose, err := openConnection()
 	if err != nil {
-		responseInternalError(w, err)
-		return
+		return nil, err
 	}
 	defer dbClose()
 
-	results, err := db.Query("SELECT `id`, `name`, `description`,`report`,`assigner`,`assignee`,`review`,`review_at`,`comment`,`confirmation`,`start_at`,`close_at`,`open_at`,`open_from`,`status`,`is_closed` FROM `tasks`")
+	results, err := db.Query("SELECT `id`, `name`, `description`,`report`,`assigner`,`assignee`,`review`,`review_at`,`comment`,`confirmation`,`start_at`,`close_at`,`open_at`,`open_from`,`status`,`is_closed` FROM `tasks` WHERE `id` = ?", id)
 	if err != nil {
-		responseInternalError(w, err)
-		return
+		return nil, err
 	}
 
-	var tasks []Task
-
-	for results.Next() {
+	if results.Next() {
 		var task Task
 
 		err = results.Scan(&task.Id, &task.Name, &task.Description, &task.Report, &task.Assigner, &task.Assignee, &task.Review, &task.ReviewAt, &task.Comment, &task.Confirmation, &task.StartAt, &task.OpenAt, &task.OpenAt, &task.OpenFrom, &task.Status, &task.IsClosed)
 		if err != nil {
-			responseInternalError(w, err)
-			return
+			return nil, err
 		}
 
-		tasks = append(tasks, task)
-
+		return &task, nil
+	} else {
+		return nil, errors.New("Invalid group id")
 	}
 
-	json.NewEncoder(w).Encode(tasks)
 }
 
-func listCanBeOpenedFrom(w http.ResponseWriter, r *http.Request, user User) {
+// -----------------------------------------------------------------------------
+
+func getReopenableTasks(w http.ResponseWriter, r *http.Request, user User) {
 	db, dbClose, err := openConnection()
 	if err != nil {
 		responseInternalError(w, err)
@@ -74,17 +70,25 @@ func listCanBeOpenedFrom(w http.ResponseWriter, r *http.Request, user User) {
 	query := "SELECT `id`, `name` FROM `tasks` WHERE (`is_closed` = TRUE AND `status` != 4) OR `status` != 5"
 
 	var mng int
-	mng, err = getManager(*user.GroupId)
-
 	var results *sql.Rows
 
-	results, err = db.Query(query+" `assigner` = ?", mng)
-	if err != nil {
-		responseInternalError(w, err)
-		return
+	if !*user.IsAdmin || user.GroupId != nil {
+		mng, err = getManager(*user.GroupId)
+
+		results, err = db.Query(query+" `assigner` = ?", mng)
+		if err != nil {
+			responseInternalError(w, err)
+			return
+		}
+	} else {
+		results, err = db.Query(query)
+		if err != nil {
+			responseInternalError(w, err)
+			return
+		}
 	}
 
-	var tasks []Task
+	tasks := make([]Task, 0)
 
 	for results.Next() {
 		var task Task
@@ -102,7 +106,7 @@ func listCanBeOpenedFrom(w http.ResponseWriter, r *http.Request, user User) {
 	json.NewEncoder(w).Encode(tasks)
 }
 
-func listAssignableUsers(w http.ResponseWriter, r *http.Request, user User) {
+func getAssignableUsers(w http.ResponseWriter, r *http.Request, user User) {
 	db, dbClose, err := openConnection()
 	if err != nil {
 		responseInternalError(w, err)
@@ -124,12 +128,12 @@ func listAssignableUsers(w http.ResponseWriter, r *http.Request, user User) {
 		return
 	}
 
-	var users []User
+	users := make([]User, 0)
 
 	for results.Next() {
 		var user User
 
-		err = results.Scan(&user.Id, &user.FullName, &user.Username, &user.GroupId, &user.IsAdmin)
+		err = results.Scan(&user.Id, &user.FullName, &user.Username, &user.GroupId)
 		if err != nil {
 			responseInternalError(w, err)
 			return
@@ -140,6 +144,39 @@ func listAssignableUsers(w http.ResponseWriter, r *http.Request, user User) {
 	}
 
 	json.NewEncoder(w).Encode(users)
+}
+
+func getAllTasks(w http.ResponseWriter, r *http.Request, user User) {
+
+	db, dbClose, err := openConnection()
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+	defer dbClose()
+
+	results, err := db.Query("SELECT `id`, `name`, `description`,`report`,`assigner`,`assignee`,`review`,`review_at`,`comment`,`confirmation`,`start_at`,`close_at`,`open_at`,`open_from`,`status`,`is_closed` FROM `tasks`")
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+
+	tasks := make([]Task, 0)
+
+	for results.Next() {
+		var task Task
+
+		err = results.Scan(&task.Id, &task.Name, &task.Description, &task.Report, &task.Assigner, &task.Assignee, &task.Review, &task.ReviewAt, &task.Comment, &task.Confirmation, &task.StartAt, &task.OpenAt, &task.OpenAt, &task.OpenFrom, &task.Status, &task.IsClosed)
+		if err != nil {
+			responseInternalError(w, err)
+			return
+		}
+
+		tasks = append(tasks, task)
+
+	}
+
+	json.NewEncoder(w).Encode(tasks)
 }
 
 func createTask(w http.ResponseWriter, r *http.Request, user User) {
@@ -195,33 +232,6 @@ func createTask(w http.ResponseWriter, r *http.Request, user User) {
 	})
 }
 
-func getOneTask(id int) (*Task, error) {
-	db, dbClose, err := openConnection()
-	if err != nil {
-		return nil, err
-	}
-	defer dbClose()
-
-	results, err := db.Query("SELECT `id`, `name`, `description`,`report`,`assigner`,`assignee`,`review`,`review_at`,`comment`,`confirmation`,`start_at`,`close_at`,`open_at`,`open_from`,`status`,`is_closed` FROM `tasks` WHERE `id` = ?", id)
-	if err != nil {
-		return nil, err
-	}
-
-	if results.Next() {
-		var task Task
-
-		err = results.Scan(&task.Id, &task.Name, &task.Description, &task.Report, &task.Assigner, &task.Assignee, &task.Review, &task.ReviewAt, &task.Comment, &task.Confirmation, &task.StartAt, &task.OpenAt, &task.OpenAt, &task.OpenFrom, &task.Status, &task.IsClosed)
-		if err != nil {
-			return nil, err
-		}
-
-		return &task, nil
-	} else {
-		return nil, errors.New("Invalid group id")
-	}
-
-}
-
 func routerGetOneTask(w http.ResponseWriter, r *http.Request, user User) {
 	id, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
@@ -231,7 +241,7 @@ func routerGetOneTask(w http.ResponseWriter, r *http.Request, user User) {
 
 	task, err := getOneTask(id)
 	if err != nil {
-		responseInternalError(w, err)
+		responseCustomError(w, http.StatusNotFound, err.Error())
 		return
 	}
 
@@ -272,8 +282,12 @@ func updateTask(w http.ResponseWriter, r *http.Request, user User) {
 	defer dbClose()
 
 	thisTask, err := getOneTask(id)
+	if err != nil {
+		responseCustomError(w, http.StatusNotFound, "Invalid task id")
+		return
+	}
 
-	if *thisTask.Assigner == *user.Id {
+	if thisTask.Assigner != nil && *thisTask.Assigner == *user.Id {
 		_, err = db.Query("UPDATE `tasks` SET `name` = ?, `description` = ?, `report` = ? WHERE `id` = ?", taskToUpdate.Name, taskToUpdate.Description, taskToUpdate.Report, id)
 	} else {
 		_, err = db.Query("UPDATE `tasks` SET `report` = ? WHERE `id` = ?", taskToUpdate.Report, id)
