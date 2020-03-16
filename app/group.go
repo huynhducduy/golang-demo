@@ -2,7 +2,6 @@ package app
 
 import (
 	"io/ioutil"
-	"log"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -123,30 +122,26 @@ func getOneGroup(w http.ResponseWriter, r *http.Request, user User) {
 
 	results, err := db.Query("SELECT `id`,`name`,`description` FROM `groups` WHERE `id` = ?", idGr)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(MessageResponse{
-			Message: "Internal error!",
-		})
-		log.Printf(err.Error())
+		responseInternalError(w, err)
 		return
 	}
 
 	var group Group
 
-	results.Next()
-
-	err = results.Scan(&group.Id, &group.Name, &group.Description)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(MessageResponse{
-			Message: "Internal error!",
-		})
-		log.Printf(err.Error())
-		return
-	} else {
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(group)
+	if results.Next() {
+		err = results.Scan(&group.Id, &group.Name, &group.Description)
+		if err != nil {
+			responseInternalError(w, err)
+			return
+		} else {
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(group)
+			return
+		}
 	}
+
+	responseCustomError(w, http.StatusNotFound, "Group not found")
+	return
 }
 
 func updateGroup(w http.ResponseWriter, r *http.Request, user User) {
@@ -157,11 +152,7 @@ func updateGroup(w http.ResponseWriter, r *http.Request, user User) {
 
 		reqBody, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(MessageResponse{
-				Message: "Internal error!",
-			})
-			log.Printf(err.Error())
+			responseInternalError(w, err)
 			return
 		}
 

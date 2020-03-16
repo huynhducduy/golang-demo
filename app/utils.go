@@ -1,8 +1,10 @@
 package app
 
 import (
+	"fmt"
 	"log"
 	"net/http"
+	"runtime/debug"
 
 	jsoniter "github.com/json-iterator/go"
 )
@@ -18,7 +20,7 @@ func responseInternalError(w http.ResponseWriter, err error) {
 	json.NewEncoder(w).Encode(MessageResponse{
 		Message: "Internal error!",
 	})
-	log.Panicf(err.Error())
+	log.Printf(err.Error() + "\n" + string(debug.Stack()))
 }
 
 func responseCustomError(w http.ResponseWriter, httpCode int, message string) {
@@ -31,4 +33,8 @@ func responseCustomError(w http.ResponseWriter, httpCode int, message string) {
 func responseOK(w http.ResponseWriter, data interface{}) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(data)
+}
+
+func logg(x interface{}) {
+	fmt.Printf("%+v\n", x)
 }

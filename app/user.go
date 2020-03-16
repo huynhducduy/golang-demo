@@ -59,21 +59,24 @@ func isManager(id int) (bool, error) {
 		return false, nil
 	}
 
-	results.Next()
+	if results.Next() {
 
-	err = results.Scan(&id)
-	if err != nil {
-		log.Printf(err.Error())
-		return false, nil
+		err = results.Scan(&id)
+		if err != nil {
+			log.Printf(err.Error())
+			return false, nil
+		}
+
+		var manager_id int
+
+		results.Scan(&manager_id)
+
+		if manager_id == id {
+			return true, nil
+		} else {
+			return false, nil
+		}
 	}
 
-	var manager_id int
-
-	results.Scan(&manager_id)
-
-	if manager_id == id {
-		return true, nil
-	} else {
-		return false, nil
-	}
+	return false, nil
 }
