@@ -24,6 +24,11 @@ func Run() error {
 	router.HandleFunc("/api/v1/group/{id:[0-9]+}", isAuthenticated(routerGetOneGroup)).Methods("GET")
 	router.HandleFunc("/api/v1/group/{id:[0-9]+}", isAuthenticated(updateGroup)).Methods("PATCH")
 	router.HandleFunc("/api/v1/group/{id:[0-9]+}", isAuthenticated(deleteGroup)).Methods("DELETE")
+	router.HandleFunc("/api/v1/group/{id:[0-9]+}/member", isAuthenticated(getMembers)).Methods("GET")
+	router.HandleFunc("/api/v1/group/addables", isAuthenticated(getAddableMembers)).Methods("GET")
+	router.HandleFunc("/api/v1/group/{id:[0-9]+}/member", isAuthenticated(addMember)).Methods("PUT")
+	router.HandleFunc("/api/v1/group/{id:[0-9]+}/member", isAuthenticated(setManager)).Methods("POST")
+	router.HandleFunc("/api/v1/group/{id:[0-9]+}/member", isAuthenticated(removeMember)).Methods("DELETE")
 
 	router.HandleFunc("/api/v1/task", isAuthenticated(getAllTasks)).Methods("GET")
 	router.HandleFunc("/api/v1/task/assignable", isAuthenticated(getAssignableUsers)).Methods("GET")
@@ -34,6 +39,8 @@ func Run() error {
 	router.HandleFunc("/api/v1/task/{id:[0-9]+}", isAuthenticated(deleteTask)).Methods("DELETE")
 	router.HandleFunc("/api/v1/task/{id:[0-9]+}/check", isAuthenticated(checkTask)).Methods("POST")
 	router.HandleFunc("/api/v1/task/{id:[0-9]+}/confirm", isAuthenticated(confirmTask)).Methods("POST")
+	router.HandleFunc("/api/v1/task/{id:[0-9]+}/verify", isAuthenticated(verifyTask)).Methods("POST")
+	// router.HandleFunc("/api/v1/task/{id:[0-9]+}/close", isAuthenticated(closeTask)).Methods("POST")
 
 	router.HandleFunc("/api/v1/me", isAuthenticated(routerGetMe)).Methods("GET")
 

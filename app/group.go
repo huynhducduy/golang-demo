@@ -18,6 +18,168 @@ type Group struct {
 
 // -----------------------------------------------------------------------------
 
+func getAddableMembers(w http.ResponseWriter, r *http.Request, user User) {
+	if !*user.IsAdmin {
+		responseMessage(w, http.StatusUnauthorized, "You cannot get this!")
+		return
+	}
+
+	db, dbClose, err := openConnection()
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+	defer dbClose()
+
+	results, err := db.Query("SELECT `id`, `username`, `full_name` FROM `users` WHERE `group_id` IS NULL AND `is_admin` = 0")
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+
+	users := make([]User, 0)
+
+	for results.Next() {
+		var user User
+
+		err = results.Scan(&user.Id, &user.Username, &user.FullName)
+		if err != nil {
+			responseInternalError(w, err)
+			return
+		}
+
+		users = append(users, user)
+
+	}
+
+	json.NewEncoder(w).Encode(users)
+}
+
+func getMembers(w http.ResponseWriter, r *http.Request, user User) {
+	id, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		responseMessage(w, http.StatusBadRequest, "Id must be an integer!")
+		return
+	}
+
+	db, dbClose, err := openConnection()
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+	defer dbClose()
+
+	results, err := db.Query("SELECT `id`, `username`, `full_name` FROM `users` WHERE `group_id` = ?", id)
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+
+	users := make([]User, 0)
+
+	for results.Next() {
+		var user User
+
+		err = results.Scan(&user.Id, &user.Username, &user.FullName)
+		if err != nil {
+			responseInternalError(w, err)
+			return
+		}
+
+		users = append(users, user)
+
+	}
+
+	json.NewEncoder(w).Encode(users)
+}
+
+func addMember(w http.ResponseWriter, r *http.Request, user User) {
+	id, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		responseMessage(w, http.StatusBadRequest, "Id must be an integer!")
+		return
+	}
+
+	db, dbClose, err := openConnection()
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+	defer dbClose()
+
+	idx, err := strconv.Atoi(r.URL.Query().Get("id"))
+	if err != nil {
+		responseMessage(w, http.StatusBadRequest, "Id must be an integer!")
+		return
+	}
+
+	// Check addable
+
+	_, err = db.Query("UPDATE `users` SET `group_id` = ? WHERE `id` = ?", id, idx)
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+
+	responseMessage(w, http.StatusOK, "Add member successfully!")
+}
+
+func setManager(w http.ResponseWriter, r *http.Request, user User) {
+	id, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		responseMessage(w, http.StatusBadRequest, "Id must be an integer!")
+		return
+	}
+
+	db, dbClose, err := openConnection()
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+	defer dbClose()
+
+	idx, err := strconv.Atoi(r.URL.Query().Get("id"))
+	if err != nil {
+		responseMessage(w, http.StatusBadRequest, "Id must be an integer!")
+		return
+	}
+
+	// Check addable
+
+	_, err = db.Query("UPDATE `groups` SET `manager_id` = ? WHERE `id` = ?", idx, id)
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+
+	responseMessage(w, http.StatusOK, "Set manager successfully!")
+}
+
+func removeMember(w http.ResponseWriter, r *http.Request, user User) {
+	db, dbClose, err := openConnection()
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+	defer dbClose()
+
+	idx, err := strconv.Atoi(r.URL.Query().Get("id"))
+	if err != nil {
+		responseMessage(w, http.StatusBadRequest, "Id must be an integer!")
+		return
+	}
+
+	// Check removable
+
+	_, err = db.Query("UPDATE `users` SET `group_id` = NULL WHERE `id` = ?", idx)
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+
+	responseMessage(w, http.StatusOK, "Remove member successfully!")
+}
+
 func getAllGroups(w http.ResponseWriter, r *http.Request, user User) {
 
 	db, dbClose, err := openConnection()
@@ -27,7 +189,7 @@ func getAllGroups(w http.ResponseWriter, r *http.Request, user User) {
 	}
 	defer dbClose()
 
-	results, err := db.Query("SELECT `id`, `name`, `description` FROM `groups`")
+	results, err := db.Query("SELECT `id`, `name`, `description`, `manager_id` FROM `groups`")
 	if err != nil {
 		responseInternalError(w, err)
 		return
@@ -38,7 +200,7 @@ func getAllGroups(w http.ResponseWriter, r *http.Request, user User) {
 	for results.Next() {
 		var group Group
 
-		err = results.Scan(&group.Id, &group.Name, &group.Description)
+		err = results.Scan(&group.Id, &group.Name, &group.Description, &group.ManagerId)
 		if err != nil {
 			responseInternalError(w, err)
 			return
@@ -63,10 +225,7 @@ func createGroup(w http.ResponseWriter, r *http.Request, user User) {
 		json.Unmarshal(reqBody, &newGroup)
 
 		if newGroup.Name == nil {
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(MessageResponse{
-				Message: "Group's name must not be empty!",
-			})
+			responseMessage(w, http.StatusBadRequest, "Group's name must not be empty!")
 			return
 		}
 
@@ -88,7 +247,7 @@ func createGroup(w http.ResponseWriter, r *http.Request, user User) {
 			Message: "New group created successfully!",
 		})
 	}
-	w.WriteHeader(http.StatusUnauthorized)
+	responseMessage(w, http.StatusUnauthorized, "You are not authorized to create group!")
 }
 
 func getOneGroup(id int) (*Group, error) {
@@ -99,19 +258,19 @@ func getOneGroup(id int) (*Group, error) {
 	}
 	defer dbClose()
 
-	results, err := db.Query("SELECT `id`,`name`,`description` FROM `groups` WHERE `id` = ?", id)
+	results, err := db.Query("SELECT `id`,`name`,`description`,`manager_id` FROM `groups` WHERE `id` = ?", id)
 	if err != nil {
 		return nil, err
 	}
 
-	var group *Group
+	var group Group
 
 	if results.Next() {
-		err = results.Scan(group.Id, group.Name, group.Description)
+		err = results.Scan(&group.Id, &group.Name, &group.Description, &group.ManagerId)
 		if err != nil {
 			return nil, err
 		}
-		return group, nil
+		return &group, nil
 	}
 
 	return nil, errors.New("Invalid group id")

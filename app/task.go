@@ -218,7 +218,7 @@ func confirmTask(w http.ResponseWriter, r *http.Request, user User) {
 		return
 	}
 
-	if *task.Status != 2 || *task.IsClosed {
+	if *task.Status != 2 || *task.IsClosed || *task.Assignee != *user.Id {
 		responseMessage(w, http.StatusBadRequest, "Cannot confirm this task!")
 		return
 	}
@@ -227,8 +227,7 @@ func confirmTask(w http.ResponseWriter, r *http.Request, user User) {
 
 	file, _, err := r.FormFile("proof")
 	if err != nil {
-		fmt.Println("Error Retrieving the File")
-		fmt.Println(err)
+		responseMessage(w, http.StatusBadRequest, "Please uplaod proof!")
 		return
 	}
 
@@ -276,6 +275,45 @@ func confirmTask(w http.ResponseWriter, r *http.Request, user User) {
 	}
 
 	responseMessage(w, http.StatusOK, "Confirm task successfully!")
+}
+
+func verifyTask(w http.ResponseWriter, r *http.Request, user User) {
+	id, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		responseMessage(w, http.StatusBadRequest, "Id must be an integer!")
+		return
+	}
+
+	task, err := getOneTask(id)
+	if err != nil {
+		response(w, http.StatusNotFound, err.Error())
+		return
+	}
+
+	if (*task.Status != 3 && *task.Status != 4) || *task.IsClosed || (*task.Assigner != *user.Id && !*user.IsAdmin) {
+		responseMessage(w, http.StatusBadRequest, "Cannot confirm this task!")
+		return
+	}
+
+	db, dbClose, err := openConnection()
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+	defer dbClose()
+
+	if r.URL.Query().Get("ok") == "false" {
+		_, err = db.Query("UPDATE `tasks` SET `status` = 2 `id` = ?", id)
+	} else {
+		_, err = db.Query("UPDATE `tasks` SET `is_closed` = TRUE `id` = ?", id)
+	}
+
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+
+	responseMessage(w, http.StatusOK, "Verify task successfully")
 }
 
 // -----------------------------------------------------------------------------
