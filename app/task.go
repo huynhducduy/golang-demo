@@ -5,32 +5,34 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
 )
 
 type Task struct {
-	Id           *int    `json:"id,omitempty"`
-	Name         *string `json:"name"`        // Updatable
-	Description  *string `json:"description"` // Updatable
-	Report       *string `json:"report"`      // Updatable
-	Assigner     *int    `json:"assigner"`
-	Assignee     *int    `json:"assignee"`
-	Review       *int    `json:"review"`
-	ReviewAt     *int64  `json:"review_at"`
-	Comment      *string `json:"comment"`
-	Confirmation *string `json:"confirmation"`
-	StartAt      *int64  `json:"start_at"`
-	StopAt       *int64  `json:"stop_at"`
-	CloseAt      *int64  `json:"close_at"`
-	OpenAt       *int64  `json:"open_at"`
-	OpenFrom     *int    `json:"open_from"`
-	Status       *int    `json:"status"`
-	IsClosed     *bool   `json:"is_closed"`
+	Id          *int    `json:"id,omitempty"`
+	Name        *string `json:"name"`        // Updatable
+	Description *string `json:"description"` // Updatable
+	Report      *string `json:"report"`      // Updatable
+	Assigner    *int    `json:"assigner"`
+	Assignee    *int    `json:"assignee"`
+	Review      *int    `json:"review"`
+	ReviewAt    *int64  `json:"review_at"`
+	Comment     *string `json:"comment"`
+	Proof       *string `json:"proof"`
+	StartAt     *int64  `json:"start_at"`
+	StopAt      *int64  `json:"stop_at"`
+	CloseAt     *int64  `json:"close_at"`
+	OpenAt      *int64  `json:"open_at"`
+	OpenFrom    *int    `json:"open_from"`
+	Status      *int    `json:"status"`
+	IsClosed    *bool   `json:"is_closed"`
 }
 
 func getOneTask(id int) (*Task, error) {
@@ -40,7 +42,7 @@ func getOneTask(id int) (*Task, error) {
 	}
 	defer dbClose()
 
-	results, err := db.Query("SELECT `id`, `name`, `description`,`report`,`assigner`,`assignee`,`review`,`review_at`,`comment`,`confirmation`,`start_at`,`close_at`,`open_at`,`open_from`,`status`,`is_closed` FROM `tasks` WHERE `id` = ?", id)
+	results, err := db.Query("SELECT `id`, `name`, `description`,`report`,`assigner`,`assignee`,`review`,`review_at`,`comment`,`proof`,`start_at`,`close_at`,`open_at`,`open_from`,`status`,`is_closed` FROM `tasks` WHERE `id` = ?", id)
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +50,7 @@ func getOneTask(id int) (*Task, error) {
 	if results.Next() {
 		var task Task
 
-		err = results.Scan(&task.Id, &task.Name, &task.Description, &task.Report, &task.Assigner, &task.Assignee, &task.Review, &task.ReviewAt, &task.Comment, &task.Confirmation, &task.StartAt, &task.OpenAt, &task.OpenAt, &task.OpenFrom, &task.Status, &task.IsClosed)
+		err = results.Scan(&task.Id, &task.Name, &task.Description, &task.Report, &task.Assigner, &task.Assignee, &task.Review, &task.ReviewAt, &task.Comment, &task.Proof, &task.StartAt, &task.OpenAt, &task.OpenAt, &task.OpenFrom, &task.Status, &task.IsClosed)
 		if err != nil {
 			return nil, err
 		}
@@ -232,7 +234,19 @@ func confirmTask(w http.ResponseWriter, r *http.Request, user User) {
 
 	defer file.Close()
 
-	uploadFile, err := os.OpenFile("images/"+strconv.FormatInt(time.Now().Unix(), 10)+".png", os.O_WRONLY|os.O_CREATE, 0666)
+	rand.Seed(time.Now().UnixNano())
+	chars := []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZÅÄÖ" +
+		"abcdefghijklmnopqrstuvwxyzåäö" +
+		"0123456789")
+	length := 8
+	var b strings.Builder
+	for i := 0; i < length; i++ {
+		b.WriteRune(chars[rand.Intn(len(chars))])
+	}
+
+	filename := strconv.FormatInt(time.Now().Unix(), 10) + "-" + b.String() + ".png"
+
+	uploadFile, err := os.OpenFile("images/"+filename, os.O_WRONLY|os.O_CREATE, 0666)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -244,7 +258,24 @@ func confirmTask(w http.ResponseWriter, r *http.Request, user User) {
 	}
 
 	uploadFile.Write(fileBytes)
-	fmt.Fprintf(w, "Successfully Uploaded File\n")
+	db, dbClose, err := openConnection()
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+	defer dbClose()
+
+	stt := 3
+	if r.URL.Query().Get("blocked") == "true" {
+		stt = 4
+	}
+	_, err = db.Query("UPDATE `tasks` SET `status` = ?, `proof` = ? WHERE `id` = ?", stt, filename, id)
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+
+	responseMessage(w, http.StatusOK, "Confirm task successfully!")
 }
 
 // -----------------------------------------------------------------------------
@@ -258,7 +289,7 @@ func getAllTasks(w http.ResponseWriter, r *http.Request, user User) {
 	}
 	defer dbClose()
 
-	results, err := db.Query("SELECT `id`, `name`, `description`,`report`,`assigner`,`assignee`,`review`,`review_at`,`comment`,`confirmation`,`start_at`,`close_at`,`open_at`,`open_from`,`status`,`is_closed` FROM `tasks`")
+	results, err := db.Query("SELECT `id`, `name`, `description`,`report`,`assigner`,`assignee`,`review`,`review_at`,`comment`,`proof`,`start_at`,`close_at`,`open_at`,`open_from`,`status`,`is_closed` FROM `tasks`")
 	if err != nil {
 		responseInternalError(w, err)
 		return
@@ -269,7 +300,7 @@ func getAllTasks(w http.ResponseWriter, r *http.Request, user User) {
 	for results.Next() {
 		var task Task
 
-		err = results.Scan(&task.Id, &task.Name, &task.Description, &task.Report, &task.Assigner, &task.Assignee, &task.Review, &task.ReviewAt, &task.Comment, &task.Confirmation, &task.StartAt, &task.OpenAt, &task.OpenAt, &task.OpenFrom, &task.Status, &task.IsClosed)
+		err = results.Scan(&task.Id, &task.Name, &task.Description, &task.Report, &task.Assigner, &task.Assignee, &task.Review, &task.ReviewAt, &task.Comment, &task.Proof, &task.StartAt, &task.OpenAt, &task.OpenAt, &task.OpenFrom, &task.Status, &task.IsClosed)
 		if err != nil {
 			responseInternalError(w, err)
 			return
