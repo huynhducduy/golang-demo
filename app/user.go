@@ -49,7 +49,35 @@ func routerGetMe(w http.ResponseWriter, r *http.Request, user User) {
 }
 
 func getAllUsers(w http.ResponseWriter, r *http.Request, user User) {
+	db, dbClose, err := openConnection()
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+	defer dbClose()
 
+	results, err := db.Query("SELECT `id`, `username`, `full_name`, `group_id`, `is_admin` FROM `users`")
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+
+	users := make([]User, 0)
+
+	for results.Next() {
+		var user User
+
+		err = results.Scan(&user.Id, &user.Username, &user.FullName, &user.GroupId, &user.IsAdmin)
+		if err != nil {
+			responseInternalError(w, err)
+			return
+		}
+
+		users = append(users, user)
+
+	}
+
+	json.NewEncoder(w).Encode(users)
 }
 
 func createUser(w http.ResponseWriter, r *http.Request, user User) {
@@ -145,7 +173,7 @@ func updateUser(w http.ResponseWriter, r *http.Request, user User) {
 			return
 		}
 
-		responseMessage(w, http.StatusOK, "Delete user successfully!")
+		responseMessage(w, http.StatusOK, "Update user successfully!")
 		return
 	}
 	responseMessage(w, http.StatusUnauthorized, "Unauthorized")
