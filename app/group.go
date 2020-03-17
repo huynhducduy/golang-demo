@@ -52,7 +52,7 @@ func getAllGroups(w http.ResponseWriter, r *http.Request, user User) {
 }
 
 func createGroup(w http.ResponseWriter, r *http.Request, user User) {
-	if *user.IsAdmin == true {
+	if *user.IsAdmin {
 		var newGroup Group
 		reqBody, err := ioutil.ReadAll(r.Body)
 		if err != nil {
@@ -89,7 +89,6 @@ func createGroup(w http.ResponseWriter, r *http.Request, user User) {
 		})
 	}
 	w.WriteHeader(http.StatusUnauthorized)
-	return
 }
 
 func getOneGroup(id int) (*Group, error) {
@@ -132,11 +131,10 @@ func routerGetOneGroup(w http.ResponseWriter, r *http.Request, user User) {
 	}
 
 	responseOK(w, group)
-	return
 }
 
 func updateGroup(w http.ResponseWriter, r *http.Request, user User) {
-	if *user.IsAdmin == true {
+	if *user.IsAdmin {
 		idGr := mux.Vars(r)["id"]
 
 		var group Group
@@ -181,7 +179,7 @@ func updateGroup(w http.ResponseWriter, r *http.Request, user User) {
 }
 
 func deleteGroup(w http.ResponseWriter, r *http.Request, user User) {
-	if *user.IsAdmin == true {
+	if *user.IsAdmin {
 		idGr := mux.Vars(r)["id"]
 
 		db, dbClose, err := openConnection()

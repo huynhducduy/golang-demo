@@ -59,7 +59,6 @@ func isAuthenticated(endpoint func(http.ResponseWriter, *http.Request, User)) fu
 		}
 
 		responseCustomError(w, http.StatusUnauthorized, "Invalid token!")
-		return
 	}
 }
 
@@ -119,5 +118,4 @@ func login(w http.ResponseWriter, r *http.Request) {
 	token := generateToken(id)
 
 	responseOK(w, token)
-	return
 }

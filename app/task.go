@@ -200,7 +200,6 @@ func checkTask(w http.ResponseWriter, r *http.Request, user User) {
 	}
 
 	responseOK(w, "Task checked!")
-	return
 }
 
 // -----------------------------------------------------------------------------
