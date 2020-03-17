@@ -120,7 +120,7 @@ func getOneGroup(id int) (*Group, error) {
 func routerGetOneGroup(w http.ResponseWriter, r *http.Request, user User) {
 	id, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
-		responseCustomError(w, http.StatusBadRequest, "Id must be an integer!")
+		responseMessage(w, http.StatusBadRequest, "Id must be an integer!")
 		return
 	}
 
@@ -130,7 +130,7 @@ func routerGetOneGroup(w http.ResponseWriter, r *http.Request, user User) {
 		return
 	}
 
-	responseOK(w, group)
+	response(w, http.StatusOK, group)
 }
 
 func updateGroup(w http.ResponseWriter, r *http.Request, user User) {

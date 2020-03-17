@@ -3,8 +3,10 @@ package app
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -12,22 +14,23 @@ import (
 )
 
 type Task struct {
-	Id           *int       `json:"id,omitempty"`
-	Name         *string    `json:"name"`        // Updatable
-	Description  *string    `json:"description"` // Updatanle
-	Report       *string    `json:"report"`      // Updateable
-	Assigner     *int       `json:"assigner"`
-	Assignee     *int       `json:"assignee"`
-	Review       *int       `json:"review"`
-	ReviewAt     *time.Time `json:"review_at"`
-	Comment      *string    `json:"comment"`
-	Confirmation *string    `json:"confirmation"`
-	StartAt      *time.Time `json:"start_at"`
-	CloseAt      *time.Time `json:"close_at"`
-	OpenAt       *time.Time `json:"open_at"`
-	OpenFrom     *int       `json:"open_from"`
-	Status       *int       `json:"status"`
-	IsClosed     *bool      `json:"is_closed"`
+	Id           *int    `json:"id,omitempty"`
+	Name         *string `json:"name"`        // Updatable
+	Description  *string `json:"description"` // Updatable
+	Report       *string `json:"report"`      // Updatable
+	Assigner     *int    `json:"assigner"`
+	Assignee     *int    `json:"assignee"`
+	Review       *int    `json:"review"`
+	ReviewAt     *int64  `json:"review_at"`
+	Comment      *string `json:"comment"`
+	Confirmation *string `json:"confirmation"`
+	StartAt      *int64  `json:"start_at"`
+	StopAt       *int64  `json:"stop_at"`
+	CloseAt      *int64  `json:"close_at"`
+	OpenAt       *int64  `json:"open_at"`
+	OpenFrom     *int    `json:"open_from"`
+	Status       *int    `json:"status"`
+	IsClosed     *bool   `json:"is_closed"`
 }
 
 func getOneTask(id int) (*Task, error) {
@@ -157,7 +160,7 @@ func getAssignableUsers(w http.ResponseWriter, r *http.Request, user User) {
 func checkTask(w http.ResponseWriter, r *http.Request, user User) {
 	id, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
-		responseCustomError(w, http.StatusBadRequest, "Id must be an integer!")
+		responseMessage(w, http.StatusBadRequest, "Id must be an integer!")
 		return
 	}
 
@@ -169,15 +172,13 @@ func checkTask(w http.ResponseWriter, r *http.Request, user User) {
 
 	if !*user.IsAdmin {
 		if *task.Assigner != *user.Id {
-			responseCustomError(w, http.StatusUnauthorized, "You cannot approve this task!")
+			responseMessage(w, http.StatusUnauthorized, "You cannot approve this task!")
 			return
 		}
 	}
 
-	logg(task)
-
-	if *task.Status != 0 {
-		responseCustomError(w, http.StatusBadRequest, "You can only approve new tasks!")
+	if *task.Status != 0 || *task.IsClosed {
+		responseMessage(w, http.StatusBadRequest, "You can only approve new tasks!")
 		return
 	}
 
@@ -189,7 +190,7 @@ func checkTask(w http.ResponseWriter, r *http.Request, user User) {
 	defer dbClose()
 
 	attr := "is_closed"
-	if r.URL.Query().Get("to") != "1" {
+	if r.URL.Query().Get("close") != "true" {
 		attr = "status"
 	}
 
@@ -199,7 +200,51 @@ func checkTask(w http.ResponseWriter, r *http.Request, user User) {
 		return
 	}
 
-	responseOK(w, "Task checked!")
+	responseMessage(w, http.StatusOK, "Task checked!")
+}
+
+func confirmTask(w http.ResponseWriter, r *http.Request, user User) {
+	id, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		responseMessage(w, http.StatusBadRequest, "Id must be an integer!")
+		return
+	}
+
+	task, err := getOneTask(id)
+	if err != nil {
+		response(w, http.StatusNotFound, err.Error())
+		return
+	}
+
+	if *task.Status != 2 || *task.IsClosed {
+		responseMessage(w, http.StatusBadRequest, "Cannot confirm this task!")
+		return
+	}
+
+	r.ParseMultipartForm(10 << 20)
+
+	file, _, err := r.FormFile("proof")
+	if err != nil {
+		fmt.Println("Error Retrieving the File")
+		fmt.Println(err)
+		return
+	}
+
+	defer file.Close()
+
+	uploadFile, err := os.OpenFile("images/"+strconv.FormatInt(time.Now().Unix(), 10)+".png", os.O_WRONLY|os.O_CREATE, 0666)
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer uploadFile.Close()
+
+	fileBytes, err := ioutil.ReadAll(file)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	uploadFile.Write(fileBytes)
+	fmt.Fprintf(w, "Successfully Uploaded File\n")
 }
 
 // -----------------------------------------------------------------------------
@@ -248,9 +293,12 @@ func createTask(w http.ResponseWriter, r *http.Request, user User) {
 	json.Unmarshal(reqBody, &newTask)
 
 	if newTask.Name == nil && newTask.Description == nil {
-		responseCustomError(w, http.StatusBadRequest, "Task's name and task's description must not be empty!")
+		responseMessage(w, http.StatusBadRequest, "Task's name and task's description must not be empty!")
 		return
 	}
+
+	var stt int = 0
+	newTask.Status = &stt
 
 	if !*user.IsAdmin {
 		if user.GroupId != nil {
@@ -263,14 +311,31 @@ func createTask(w http.ResponseWriter, r *http.Request, user User) {
 
 			if *group.ManagerId != *user.Id {
 				newTask.Assignee = user.Id
+				stt = 0
 				goto insert
 			}
 		}
 	}
 
-	*newTask.Assigner = *user.Id
+	stt = 1
+	newTask.Assigner = user.Id
 	if newTask.Assignee == nil {
-		responseCustomError(w, http.StatusBadRequest, "Assignee must not be empty!")
+		responseMessage(w, http.StatusBadRequest, "Assignee must not be empty!")
+		return
+	}
+
+	if newTask.StartAt == nil {
+		responseMessage(w, http.StatusBadRequest, "Start must not be empty!")
+		return
+	}
+
+	if newTask.StopAt == nil {
+		responseMessage(w, http.StatusBadRequest, "Stop must not be empty!")
+		return
+	}
+
+	if *newTask.StopAt <= *newTask.StartAt {
+		responseMessage(w, http.StatusBadRequest, "Stop must happen after start!")
 		return
 	}
 
@@ -283,7 +348,10 @@ insert:
 	}
 	defer dbClose()
 
-	_, err = db.Query("INSERT INTO `Tasks`(`name`, `description`,`assignee`,`status`,`assigner`) VALUES(?,?,?,?,?)", newTask.Name, newTask.Description, newTask.Assignee, newTask.Status, newTask.Assigner)
+	// Check open_from
+	// Check assignee
+
+	_, err = db.Query("INSERT INTO `Tasks`(`name`, `description`,`assignee`,`status`,`assigner`,`open_at`,`open_from`) VALUES(?,?,?,?,?,?,?)", newTask.Name, newTask.Description, newTask.Assignee, newTask.Status, newTask.Assigner, time.Now().Unix(), newTask.OpenFrom)
 	if err != nil {
 		responseInternalError(w, err)
 		return
@@ -298,13 +366,13 @@ insert:
 func routerGetOneTask(w http.ResponseWriter, r *http.Request, user User) {
 	id, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
-		responseCustomError(w, http.StatusBadRequest, "Id must be an integer!")
+		responseMessage(w, http.StatusBadRequest, "Id must be an integer!")
 		return
 	}
 
 	task, err := getOneTask(id)
 	if err != nil {
-		responseCustomError(w, http.StatusNotFound, err.Error())
+		response(w, http.StatusNotFound, err.Error())
 		return
 	}
 
@@ -315,7 +383,7 @@ func routerGetOneTask(w http.ResponseWriter, r *http.Request, user User) {
 func updateTask(w http.ResponseWriter, r *http.Request, user User) {
 	id, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
-		responseCustomError(w, http.StatusBadRequest, "Id must be an integer!")
+		responseMessage(w, http.StatusBadRequest, "Id must be an integer!")
 		return
 	}
 
@@ -346,7 +414,7 @@ func updateTask(w http.ResponseWriter, r *http.Request, user User) {
 
 	thisTask, err := getOneTask(id)
 	if err != nil {
-		responseCustomError(w, http.StatusNotFound, "Invalid task id")
+		responseMessage(w, http.StatusNotFound, "Invalid task id")
 		return
 	}
 

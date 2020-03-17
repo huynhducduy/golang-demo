@@ -13,6 +13,10 @@ func Run() error {
 
 	router := mux.NewRouter()
 
+	router.
+		PathPrefix("/images/").
+		Handler(http.StripPrefix("/images/", http.FileServer(http.Dir("."+"/images/"))))
+
 	router.HandleFunc("/api/v1/auth/login", login).Methods("POST")
 
 	router.HandleFunc("/api/v1/group", isAuthenticated(getAllGroups)).Methods("GET")
@@ -29,6 +33,7 @@ func Run() error {
 	router.HandleFunc("/api/v1/task/{id:[0-9]+}", isAuthenticated(updateTask)).Methods("PATCH")
 	router.HandleFunc("/api/v1/task/{id:[0-9]+}", isAuthenticated(deleteTask)).Methods("DELETE")
 	router.HandleFunc("/api/v1/task/{id:[0-9]+}/check", isAuthenticated(checkTask)).Methods("POST")
+	router.HandleFunc("/api/v1/task/{id:[0-9]+}/confirm", isAuthenticated(confirmTask)).Methods("POST")
 
 	router.HandleFunc("/api/v1/me", isAuthenticated(routerGetMe)).Methods("GET")
 

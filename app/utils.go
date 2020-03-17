@@ -23,15 +23,15 @@ func responseInternalError(w http.ResponseWriter, err error) {
 	log.Printf(err.Error() + "\n" + string(debug.Stack()))
 }
 
-func responseCustomError(w http.ResponseWriter, httpCode int, message string) {
+func responseMessage(w http.ResponseWriter, httpCode int, message string) {
 	w.WriteHeader(httpCode)
 	json.NewEncoder(w).Encode(MessageResponse{
 		Message: message,
 	})
 }
 
-func responseOK(w http.ResponseWriter, data interface{}) {
-	w.WriteHeader(http.StatusOK)
+func response(w http.ResponseWriter, httpCode int, data interface{}) {
+	w.WriteHeader(httpCode)
 	json.NewEncoder(w).Encode(data)
 }
 

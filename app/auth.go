@@ -38,7 +38,7 @@ func isAuthenticated(endpoint func(http.ResponseWriter, *http.Request, User)) fu
 
 		user_token, err := getToken(r)
 		if err != nil {
-			responseCustomError(w, http.StatusUnauthorized, err.Error())
+			response(w, http.StatusUnauthorized, err.Error())
 			return
 		}
 
@@ -58,7 +58,7 @@ func isAuthenticated(endpoint func(http.ResponseWriter, *http.Request, User)) fu
 			return
 		}
 
-		responseCustomError(w, http.StatusUnauthorized, "Invalid token!")
+		responseMessage(w, http.StatusUnauthorized, "Invalid token!")
 	}
 }
 
@@ -86,7 +86,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 	json.Unmarshal(reqBody, &credential)
 
 	if credential.Username != "" && credential.Password != "" {
-		responseCustomError(w, http.StatusBadRequest, "Username and password must not be empty!")
+		responseMessage(w, http.StatusBadRequest, "Username and password must not be empty!")
 	}
 
 	db, dbClose, err := openConnection()
@@ -103,7 +103,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !results.Next() {
-		responseCustomError(w, http.StatusNotFound, "Username and passowrd is incorrect!")
+		responseMessage(w, http.StatusNotFound, "Username and passowrd is incorrect!")
 		return
 	}
 
@@ -117,5 +117,5 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 	token := generateToken(id)
 
-	responseOK(w, token)
+	response(w, http.StatusOK, token)
 }
