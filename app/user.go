@@ -15,6 +15,7 @@ type User struct {
 	FullName *string `json:"full_name"`
 	GroupId  *int    `json:"group_id"`
 	IsAdmin  *bool   `json:"is_admin"`
+	Password *string `json:"password,omitempty"`
 }
 
 func getOneUser(id int) (*User, error) {
@@ -53,6 +54,46 @@ func getAllUsers(w http.ResponseWriter, r *http.Request, user User) {
 
 func createUser(w http.ResponseWriter, r *http.Request, user User) {
 	if *user.IsAdmin {
+		reqBody, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			responseInternalError(w, err)
+			return
+		}
+
+		var thisUser User
+
+		json.Unmarshal(reqBody, &thisUser)
+
+		if thisUser.Username == nil {
+			responseMessage(w, http.StatusBadRequest, "Username must not be empty!")
+			return
+		}
+
+		if thisUser.Password == nil {
+			responseMessage(w, http.StatusBadRequest, "Username must not be empty!")
+			return
+		}
+
+		if thisUser.FullName == nil {
+			responseMessage(w, http.StatusBadRequest, "Full name must not be empty!")
+			return
+		}
+
+		db, dbClose, err := openConnection()
+		if err != nil {
+			responseInternalError(w, err)
+			return
+		}
+		defer dbClose()
+
+		_, err = db.Query("INSERT INTO `users`(`username`, `password`,`full_name`) VALUES(?,?,?)", thisUser.Username, thisUser.Password, thisUser.FullName)
+		if err != nil {
+			responseInternalError(w, err)
+			return
+		}
+
+		responseMessage(w, http.StatusOK, "User created!")
+
 	}
 	responseMessage(w, http.StatusUnauthorized, "Unauthorized")
 }
