@@ -2,7 +2,11 @@ package app
 
 import (
 	"errors"
+	"io/ioutil"
 	"net/http"
+	"strconv"
+
+	"github.com/gorilla/mux"
 )
 
 type User struct {
@@ -41,6 +45,94 @@ func getOneUser(id int) (*User, error) {
 
 func routerGetMe(w http.ResponseWriter, r *http.Request, user User) {
 	json.NewEncoder(w).Encode(user)
+}
+
+func getAllUsers(w http.ResponseWriter, r *http.Request, user User) {
+
+}
+
+func createUser(w http.ResponseWriter, r *http.Request, user User) {
+	if *user.IsAdmin {
+	}
+	responseMessage(w, http.StatusUnauthorized, "Unauthorized")
+}
+
+func routerGetOneUser(w http.ResponseWriter, r *http.Request, user User) {
+	id, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		responseMessage(w, http.StatusBadRequest, "Id must be an integer!")
+		return
+	}
+	thisUser, err := getOneUser(id)
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+
+	response(w, http.StatusOK, thisUser)
+}
+
+func updateUser(w http.ResponseWriter, r *http.Request, user User) {
+	if *user.IsAdmin {
+		id, err := strconv.Atoi(mux.Vars(r)["id"])
+		if err != nil {
+			responseMessage(w, http.StatusBadRequest, "Id must be an integer!")
+			return
+		}
+
+		db, dbClose, err := openConnection()
+		if err != nil {
+			responseInternalError(w, err)
+			return
+		}
+		defer dbClose()
+
+		reqBody, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			responseInternalError(w, err)
+			return
+		}
+
+		var thisUser User
+
+		json.Unmarshal(reqBody, &thisUser)
+
+		_, err = db.Query("UPDATE `users` SET `full_name` = ? WHERE `id` = ?", thisUser.FullName, id)
+		if err != nil {
+			responseInternalError(w, err)
+			return
+		}
+
+		responseMessage(w, http.StatusOK, "Delete user successfully!")
+
+	}
+	responseMessage(w, http.StatusUnauthorized, "Unauthorized")
+}
+
+func deleteUser(w http.ResponseWriter, r *http.Request, user User) {
+	if *user.IsAdmin {
+		id, err := strconv.Atoi(mux.Vars(r)["id"])
+		if err != nil {
+			responseMessage(w, http.StatusBadRequest, "Id must be an integer!")
+			return
+		}
+
+		db, dbClose, err := openConnection()
+		if err != nil {
+			responseInternalError(w, err)
+			return
+		}
+		defer dbClose()
+
+		_, err = db.Query("DELETE FROM `users` WHERE `id` = ?", id)
+		if err != nil {
+			responseInternalError(w, err)
+			return
+		}
+
+		responseMessage(w, http.StatusOK, "Delete user successfully!")
+	}
+	responseMessage(w, http.StatusUnauthorized, "Unauthorized")
 }
 
 // func isManagerOf(groupId int, userId int) (bool, error) {

@@ -242,10 +242,8 @@ func createGroup(w http.ResponseWriter, r *http.Request, user User) {
 			return
 		}
 
-		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(MessageResponse{
-			Message: "New group created successfully!",
-		})
+		responseMessage(w, http.StatusCreated, "New group created successfully!")
+		return
 	}
 	responseMessage(w, http.StatusUnauthorized, "You are not authorized to create group!")
 }
@@ -307,10 +305,7 @@ func updateGroup(w http.ResponseWriter, r *http.Request, user User) {
 		json.Unmarshal(reqBody, &group)
 
 		if group.Name == nil {
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(MessageResponse{
-				Message: "Group's name must not be empty!",
-			})
+			responseMessage(w, http.StatusBadRequest, "Group's name must not be empty!")
 			return
 		}
 
@@ -327,14 +322,10 @@ func updateGroup(w http.ResponseWriter, r *http.Request, user User) {
 			return
 		}
 
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(MessageResponse{
-			Message: "Group updated!",
-		})
-	} else {
-		w.WriteHeader(http.StatusUnauthorized)
+		responseMessage(w, http.StatusOK, "Group updated!")
 		return
 	}
+	w.WriteHeader(http.StatusUnauthorized)
 }
 
 func deleteGroup(w http.ResponseWriter, r *http.Request, user User) {
@@ -354,12 +345,7 @@ func deleteGroup(w http.ResponseWriter, r *http.Request, user User) {
 			return
 		}
 
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(MessageResponse{
-			Message: "Group deleted!",
-		})
-	} else {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
+		responseMessage(w, http.StatusOK, "Group deleted!")
 	}
+	w.WriteHeader(http.StatusUnauthorized)
 }

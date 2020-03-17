@@ -42,6 +42,12 @@ func Run() error {
 	router.HandleFunc("/api/v1/task/{id:[0-9]+}/verify", isAuthenticated(verifyTask)).Methods("POST")
 	// router.HandleFunc("/api/v1/task/{id:[0-9]+}/close", isAuthenticated(closeTask)).Methods("POST")
 
+	router.HandleFunc("/api/v1/user", isAuthenticated(getAllUsers)).Methods("GET")
+	router.HandleFunc("/api/v1/user", isAuthenticated(createUser)).Methods("POST")
+	router.HandleFunc("/api/v1/user/{id:[0-9]+}", isAuthenticated(routerGetOneUser)).Methods("GET")
+	router.HandleFunc("/api/v1/user/{id:[0-9]+}", isAuthenticated(updateUser)).Methods("PATCH")
+	router.HandleFunc("/api/v1/user/{id:[0-9]+}", isAuthenticated(deleteUser)).Methods("DELETE")
+
 	router.HandleFunc("/api/v1/me", isAuthenticated(routerGetMe)).Methods("GET")
 
 	log.Printf("Running at port 8080")
