@@ -93,6 +93,7 @@ func createUser(w http.ResponseWriter, r *http.Request, user User) {
 		}
 
 		responseMessage(w, http.StatusOK, "User created!")
+		return
 
 	}
 	responseMessage(w, http.StatusUnauthorized, "Unauthorized")
@@ -145,7 +146,7 @@ func updateUser(w http.ResponseWriter, r *http.Request, user User) {
 		}
 
 		responseMessage(w, http.StatusOK, "Delete user successfully!")
-
+		return
 	}
 	responseMessage(w, http.StatusUnauthorized, "Unauthorized")
 }
@@ -172,6 +173,7 @@ func deleteUser(w http.ResponseWriter, r *http.Request, user User) {
 		}
 
 		responseMessage(w, http.StatusOK, "Delete user successfully!")
+		return
 	}
 	responseMessage(w, http.StatusUnauthorized, "Unauthorized")
 }
