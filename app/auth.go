@@ -76,17 +76,21 @@ func generateToken(id int) Token {
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
-	var credential Credential
+
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		responseInternalError(w, err)
 		return
 	}
 
+	var credential Credential
 	json.Unmarshal(reqBody, &credential)
 
-	if credential.Username != "" && credential.Password != "" {
+	logg(credential)
+
+	if credential.Username == "" || credential.Password == "" {
 		responseMessage(w, http.StatusBadRequest, "Username and password must not be empty!")
+		return
 	}
 
 	db, dbClose, err := openConnection()
