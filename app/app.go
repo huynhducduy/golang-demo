@@ -3,15 +3,23 @@ package app
 import (
 	"log"
 	"net/http"
+	"os"
 
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 )
+
+func loggingMiddleware(next http.Handler) http.Handler {
+	return handlers.CombinedLoggingHandler(os.Stdout, next)
+}
 
 func Run() error {
 
 	readConfig()
 
 	router := mux.NewRouter()
+
+	router.Use(loggingMiddleware)
 
 	router.
 		PathPrefix("/images/").
@@ -51,5 +59,5 @@ func Run() error {
 	router.HandleFunc("/api/v1/me", isAuthenticated(routerGetMe)).Methods("GET")
 
 	log.Printf("Running at port 8080")
-	return http.ListenAndServe(":8080", router)
+	return http.ListenAndServe(":8080", handlers.RecoveryHandler()(handlers.CompressHandler(router)))
 }
