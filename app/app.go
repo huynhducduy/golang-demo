@@ -7,6 +7,7 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/rs/cors"
 )
 
 func loggingMiddleware(next http.Handler) http.Handler {
@@ -58,6 +59,10 @@ func Run() error {
 
 	router.HandleFunc("/api/v1/me", isAuthenticated(routerGetMe)).Methods("GET")
 
+	c := cors.New(cors.Options{
+		AllowedOrigins:   []string{"*"},
+		AllowCredentials: true,
+	})
 	log.Printf("Running at port 8080")
-	return http.ListenAndServe(":8080", handlers.RecoveryHandler()(handlers.CompressHandler(router)))
+	return http.ListenAndServe(":8080", c.Handler(handlers.RecoveryHandler()(handlers.CompressHandler(router))))
 }

@@ -86,8 +86,6 @@ func login(w http.ResponseWriter, r *http.Request) {
 	var credential Credential
 	json.Unmarshal(reqBody, &credential)
 
-	logg(credential)
-
 	if credential.Username == "" || credential.Password == "" {
 		responseMessage(w, http.StatusBadRequest, "Username and password must not be empty!")
 		return
