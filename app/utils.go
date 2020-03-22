@@ -15,6 +15,10 @@ type MessageResponse struct {
 	Message string `json:"message"`
 }
 
+type CreatedResponse struct {
+	Id int64 `json:"id"`
+}
+
 func responseInternalError(w http.ResponseWriter, err error) {
 	w.WriteHeader(http.StatusInternalServerError)
 	json.NewEncoder(w).Encode(MessageResponse{
@@ -27,6 +31,13 @@ func responseMessage(w http.ResponseWriter, httpCode int, message string) {
 	w.WriteHeader(httpCode)
 	json.NewEncoder(w).Encode(MessageResponse{
 		Message: message,
+	})
+}
+
+func responseCreated(w http.ResponseWriter, id int64) {
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(CreatedResponse{
+		Id: id,
 	})
 }
 

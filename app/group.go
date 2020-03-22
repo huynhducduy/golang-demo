@@ -57,7 +57,7 @@ func getMembers(w http.ResponseWriter, r *http.Request, user User) {
 		return
 	}
 
-	results, err := db.Query("SELECT `id`, `username`, `full_name` FROM `users` WHERE `group_id` = ?", id)
+	results, err := db.Query("SELECT `id`, `username`, `full_name`, `group_id` FROM `users` WHERE `group_id` = ?", id)
 	if err != nil {
 		responseInternalError(w, err)
 		return
@@ -69,7 +69,7 @@ func getMembers(w http.ResponseWriter, r *http.Request, user User) {
 	for results.Next() {
 		var user User
 
-		err = results.Scan(&user.Id, &user.Username, &user.FullName)
+		err = results.Scan(&user.Id, &user.Username, &user.FullName, &user.GroupId)
 		if err != nil {
 			responseInternalError(w, err)
 			return
@@ -192,13 +192,19 @@ func createGroup(w http.ResponseWriter, r *http.Request, user User) {
 			return
 		}
 
-		_, err = db.Exec("INSERT INTO `groups`(`name`, `description`) VALUES(?,?)", newGroup.Name, newGroup.Description)
+		results, err := db.Exec("INSERT INTO `groups`(`name`, `description`) VALUES(?,?)", newGroup.Name, newGroup.Description)
 		if err != nil {
 			responseInternalError(w, err)
 			return
 		}
 
-		responseMessage(w, http.StatusCreated, "New group created successfully!")
+		lid, err := results.LastInsertId()
+		if err != nil {
+			responseInternalError(w, err)
+			return
+		}
+
+		responseCreated(w, lid)
 		return
 	}
 	responseMessage(w, http.StatusUnauthorized, "You are not authorized to create group!")
@@ -253,7 +259,7 @@ func updateGroup(w http.ResponseWriter, r *http.Request, user User) {
 			return
 		}
 
-		_, err = db.Exec("UPDATE `groups` SET `name` = ?, `description` = ? WHERE `id` = ?", group.Name, group.Description, idGr)
+		_, err = db.Exec("UPDATE `groups` SET `name` = ?, `description` = ?, `manager_id` = ? WHERE `id` = ?", group.Name, group.Description, group.ManagerId, idGr)
 		if err != nil {
 			responseInternalError(w, err)
 			return

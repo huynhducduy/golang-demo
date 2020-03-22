@@ -367,16 +367,20 @@ insert:
 	// Check open_from
 	// Check assignee
 
-	_, err = db.Exec("INSERT INTO `Tasks`(`name`, `description`,`assignee`,`status`,`assigner`,`open_at`,`open_from`) VALUES(?,?,?,?,?,?,?)", newTask.Name, newTask.Description, newTask.Assignee, newTask.Status, newTask.Assigner, time.Now().Unix(), newTask.OpenFrom)
+	results, err := db.Exec("INSERT INTO `Tasks`(`name`, `description`,`assignee`,`status`,`assigner`,`open_at`,`open_from`) VALUES(?,?,?,?,?,?,?)", newTask.Name, newTask.Description, newTask.Assignee, newTask.Status, newTask.Assigner, time.Now().Unix(), newTask.OpenFrom)
 	if err != nil {
 		responseInternalError(w, err)
 		return
 	}
 
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(MessageResponse{
-		Message: "New Task created successfully!",
-	})
+	lid, err := results.LastInsertId()
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+
+	responseCreated(w, lid)
+	return
 }
 
 func routerGetOneTask(w http.ResponseWriter, r *http.Request, user User) {

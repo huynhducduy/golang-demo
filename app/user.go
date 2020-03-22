@@ -91,13 +91,19 @@ func createUser(w http.ResponseWriter, r *http.Request, user User) {
 			return
 		}
 
-		_, err = db.Exec("INSERT INTO `users`(`username`, `password`,`full_name`) VALUES(?,?,?)", thisUser.Username, thisUser.Password, thisUser.FullName)
+		results, err := db.Exec("INSERT INTO `users`(`username`, `password`,`full_name`) VALUES(?,?,?)", thisUser.Username, thisUser.Password, thisUser.FullName)
 		if err != nil {
 			responseInternalError(w, err)
 			return
 		}
 
-		responseMessage(w, http.StatusOK, "User created!")
+		lid, err := results.LastInsertId()
+		if err != nil {
+			responseInternalError(w, err)
+			return
+		}
+
+		responseCreated(w, lid)
 		return
 
 	}
