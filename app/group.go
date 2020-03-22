@@ -24,13 +24,6 @@ func getAddableMembers(w http.ResponseWriter, r *http.Request, user User) {
 		return
 	}
 
-	db, dbClose, err := openConnection()
-	if err != nil {
-		responseInternalError(w, err)
-		return
-	}
-	defer dbClose()
-
 	results, err := db.Query("SELECT `id`, `username`, `full_name` FROM `users` WHERE `group_id` IS NULL AND `is_admin` = 0")
 	if err != nil {
 		responseInternalError(w, err)
@@ -61,13 +54,6 @@ func getMembers(w http.ResponseWriter, r *http.Request, user User) {
 		responseMessage(w, http.StatusBadRequest, "Id must be an integer!")
 		return
 	}
-
-	db, dbClose, err := openConnection()
-	if err != nil {
-		responseInternalError(w, err)
-		return
-	}
-	defer dbClose()
 
 	results, err := db.Query("SELECT `id`, `username`, `full_name` FROM `users` WHERE `group_id` = ?", id)
 	if err != nil {
@@ -100,13 +86,6 @@ func addMember(w http.ResponseWriter, r *http.Request, user User) {
 		return
 	}
 
-	db, dbClose, err := openConnection()
-	if err != nil {
-		responseInternalError(w, err)
-		return
-	}
-	defer dbClose()
-
 	idx, err := strconv.Atoi(r.URL.Query().Get("id"))
 	if err != nil {
 		responseMessage(w, http.StatusBadRequest, "Id must be an integer!")
@@ -131,13 +110,6 @@ func setManager(w http.ResponseWriter, r *http.Request, user User) {
 		return
 	}
 
-	db, dbClose, err := openConnection()
-	if err != nil {
-		responseInternalError(w, err)
-		return
-	}
-	defer dbClose()
-
 	idx, err := strconv.Atoi(r.URL.Query().Get("id"))
 	if err != nil {
 		responseMessage(w, http.StatusBadRequest, "Id must be an integer!")
@@ -156,12 +128,6 @@ func setManager(w http.ResponseWriter, r *http.Request, user User) {
 }
 
 func removeMember(w http.ResponseWriter, r *http.Request, user User) {
-	db, dbClose, err := openConnection()
-	if err != nil {
-		responseInternalError(w, err)
-		return
-	}
-	defer dbClose()
 
 	idx, err := strconv.Atoi(r.URL.Query().Get("id"))
 	if err != nil {
@@ -181,13 +147,6 @@ func removeMember(w http.ResponseWriter, r *http.Request, user User) {
 }
 
 func getAllGroups(w http.ResponseWriter, r *http.Request, user User) {
-
-	db, dbClose, err := openConnection()
-	if err != nil {
-		responseInternalError(w, err)
-		return
-	}
-	defer dbClose()
 
 	results, err := db.Query("SELECT `id`, `name`, `description`, `manager_id` FROM `groups`")
 	if err != nil {
@@ -229,13 +188,6 @@ func createGroup(w http.ResponseWriter, r *http.Request, user User) {
 			return
 		}
 
-		db, dbClose, err := openConnection()
-		if err != nil {
-			responseInternalError(w, err)
-			return
-		}
-		defer dbClose()
-
 		_, err = db.Query("INSERT INTO `groups`(`name`, `description`) VALUES(?,?)", newGroup.Name, newGroup.Description)
 		if err != nil {
 			responseInternalError(w, err)
@@ -249,12 +201,6 @@ func createGroup(w http.ResponseWriter, r *http.Request, user User) {
 }
 
 func getOneGroup(id int) (*Group, error) {
-
-	db, dbClose, err := openConnection()
-	if err != nil {
-		return nil, err
-	}
-	defer dbClose()
 
 	results, err := db.Query("SELECT `id`,`name`,`description`,`manager_id` FROM `groups` WHERE `id` = ?", id)
 	if err != nil {
@@ -309,13 +255,6 @@ func updateGroup(w http.ResponseWriter, r *http.Request, user User) {
 			return
 		}
 
-		db, dbClose, err := openConnection()
-		if err != nil {
-			responseInternalError(w, err)
-			return
-		}
-		defer dbClose()
-
 		_, err = db.Query("UPDATE `groups` SET `name` = ?, `description` = ? WHERE `id` = ?", group.Name, group.Description, idGr)
 		if err != nil {
 			responseInternalError(w, err)
@@ -332,14 +271,7 @@ func deleteGroup(w http.ResponseWriter, r *http.Request, user User) {
 	if *user.IsAdmin {
 		idGr := mux.Vars(r)["id"]
 
-		db, dbClose, err := openConnection()
-		if err != nil {
-			responseInternalError(w, err)
-			return
-		}
-		defer dbClose()
-
-		_, err = db.Query("DELETE FROM `groups` WHERE `id` = ?", idGr)
+		_, err := db.Query("DELETE FROM `groups` WHERE `id` = ?", idGr)
 		if err != nil {
 			responseInternalError(w, err)
 			return

@@ -18,6 +18,9 @@ func Run() error {
 
 	readConfig()
 
+	openConnection()
+	defer db.Close()
+
 	router := mux.NewRouter()
 
 	router.Use(loggingMiddleware)

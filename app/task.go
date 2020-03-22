@@ -36,11 +36,6 @@ type Task struct {
 }
 
 func getOneTask(id int) (*Task, error) {
-	db, dbClose, err := openConnection()
-	if err != nil {
-		return nil, err
-	}
-	defer dbClose()
 
 	results, err := db.Query("SELECT `id`, `name`, `description`,`report`,`assigner`,`assignee`,`review`,`review_at`,`comment`,`proof`,`start_at`,`close_at`,`open_at`,`open_from`,`status`,`is_closed` FROM `tasks` WHERE `id` = ?", id)
 	if err != nil {
@@ -65,17 +60,12 @@ func getOneTask(id int) (*Task, error) {
 // -----------------------------------------------------------------------------
 
 func getReopenableTasks(w http.ResponseWriter, r *http.Request, user User) {
-	db, dbClose, err := openConnection()
-	if err != nil {
-		responseInternalError(w, err)
-		return
-	}
-	defer dbClose()
 
 	query := "SELECT `id`, `name` FROM `tasks` WHERE (`is_closed` = TRUE AND `status` != 4) OR `status` != 5"
 
 	var mng int
 	var results *sql.Rows
+	var err error
 
 	if !*user.IsAdmin {
 		if user.GroupId != nil {
@@ -120,14 +110,9 @@ func getReopenableTasks(w http.ResponseWriter, r *http.Request, user User) {
 }
 
 func getAssignableUsers(w http.ResponseWriter, r *http.Request, user User) {
-	db, dbClose, err := openConnection()
-	if err != nil {
-		responseInternalError(w, err)
-		return
-	}
-	defer dbClose()
 
 	var results *sql.Rows
+	var err error
 
 	query := "SELECT `id`, `full_name`, `username`, `group_id` FROM `users` WHERE `is_admin` = 0 AND `id` != ?"
 
@@ -183,13 +168,6 @@ func checkTask(w http.ResponseWriter, r *http.Request, user User) {
 		responseMessage(w, http.StatusBadRequest, "You can only approve new tasks!")
 		return
 	}
-
-	db, dbClose, err := openConnection()
-	if err != nil {
-		responseInternalError(w, err)
-		return
-	}
-	defer dbClose()
 
 	attr := "is_closed"
 	if r.URL.Query().Get("close") != "true" {
@@ -257,12 +235,6 @@ func confirmTask(w http.ResponseWriter, r *http.Request, user User) {
 	}
 
 	uploadFile.Write(fileBytes)
-	db, dbClose, err := openConnection()
-	if err != nil {
-		responseInternalError(w, err)
-		return
-	}
-	defer dbClose()
 
 	stt := 3
 	if r.URL.Query().Get("blocked") == "true" {
@@ -295,13 +267,6 @@ func verifyTask(w http.ResponseWriter, r *http.Request, user User) {
 		return
 	}
 
-	db, dbClose, err := openConnection()
-	if err != nil {
-		responseInternalError(w, err)
-		return
-	}
-	defer dbClose()
-
 	if r.URL.Query().Get("ok") == "false" {
 		_, err = db.Query("UPDATE `tasks` SET `status` = 2 `id` = ?", id)
 	} else {
@@ -319,13 +284,6 @@ func verifyTask(w http.ResponseWriter, r *http.Request, user User) {
 // -----------------------------------------------------------------------------
 
 func getAllTasks(w http.ResponseWriter, r *http.Request, user User) {
-
-	db, dbClose, err := openConnection()
-	if err != nil {
-		responseInternalError(w, err)
-		return
-	}
-	defer dbClose()
 
 	results, err := db.Query("SELECT `id`, `name`, `description`,`report`,`assigner`,`assignee`,`review`,`review_at`,`comment`,`proof`,`start_at`,`close_at`,`open_at`,`open_from`,`status`,`is_closed` FROM `tasks`")
 	if err != nil {
@@ -410,13 +368,6 @@ func createTask(w http.ResponseWriter, r *http.Request, user User) {
 
 insert:
 
-	db, dbClose, err := openConnection()
-	if err != nil {
-		responseInternalError(w, err)
-		return
-	}
-	defer dbClose()
-
 	// Check open_from
 	// Check assignee
 
@@ -474,13 +425,6 @@ func updateTask(w http.ResponseWriter, r *http.Request, user User) {
 		return
 	}
 
-	db, dbClose, err := openConnection()
-	if err != nil {
-		responseInternalError(w, err)
-		return
-	}
-	defer dbClose()
-
 	thisTask, err := getOneTask(id)
 	if err != nil {
 		responseMessage(w, http.StatusNotFound, "Invalid task id")
@@ -506,14 +450,7 @@ func updateTask(w http.ResponseWriter, r *http.Request, user User) {
 func deleteTask(w http.ResponseWriter, r *http.Request, user User) {
 	idGr := mux.Vars(r)["id"]
 
-	db, dbClose, err := openConnection()
-	if err != nil {
-		responseInternalError(w, err)
-		return
-	}
-	defer dbClose()
-
-	_, err = db.Query("DELETE FROM `tasks` WHERE `id` = ?", idGr)
+	_, err := db.Query("DELETE FROM `tasks` WHERE `id` = ?", idGr)
 	if err != nil {
 		responseInternalError(w, err)
 		return

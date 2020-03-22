@@ -91,13 +91,6 @@ func login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db, dbClose, err := openConnection()
-	if err != nil {
-		responseInternalError(w, err)
-		return
-	}
-	defer dbClose()
-
 	results, err := db.Query("SELECT `id` FROM `users` where `username` = ? AND `password` = ?", credential.Username, credential.Password)
 	if err != nil {
 		responseInternalError(w, err)
