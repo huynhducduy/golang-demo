@@ -1,6 +1,7 @@
 package app
 
 import (
+	"database/sql"
 	"errors"
 	"io/ioutil"
 	"net/http"
@@ -19,29 +20,17 @@ type User struct {
 }
 
 func getOneUser(id int) (*User, error) {
-	db, dbClose, err := openConnection()
-	if err != nil {
-		return nil, err
-	}
-	defer dbClose()
+	var user User
 
-	results, err := db.Query("SELECT `id`, `full_name`, `username`, `group_id`, `is_admin` FROM `users` WHERE `id` = ?", id)
-	if err != nil {
-		return nil, err
-	}
-
-	if results.Next() {
-		var user User
-
-		err = results.Scan(&user.Id, &user.FullName, &user.Username, &user.GroupId, &user.IsAdmin)
-		if err != nil {
-			return nil, err
-		}
-
-		return &user, nil
-	} else {
+	results := db.QueryRow("SELECT `id`, `full_name`, `username`, `group_id`, `is_admin` FROM `users` WHERE `id` = ?", id)
+	err := results.Scan(&user.Id, &user.FullName, &user.Username, &user.GroupId, &user.IsAdmin)
+	if err == sql.ErrNoRows {
 		return nil, errors.New("Invalid user id")
+	} else if err != nil {
+		return nil, err
 	}
+
+	return &user, nil
 }
 
 func routerGetMe(w http.ResponseWriter, r *http.Request, user User) {
@@ -49,18 +38,13 @@ func routerGetMe(w http.ResponseWriter, r *http.Request, user User) {
 }
 
 func getAllUsers(w http.ResponseWriter, r *http.Request, user User) {
-	db, dbClose, err := openConnection()
-	if err != nil {
-		responseInternalError(w, err)
-		return
-	}
-	defer dbClose()
 
 	results, err := db.Query("SELECT `id`, `username`, `full_name`, `group_id`, `is_admin` FROM `users`")
 	if err != nil {
 		responseInternalError(w, err)
 		return
 	}
+	defer results.Close()
 
 	users := make([]User, 0)
 
@@ -107,14 +91,7 @@ func createUser(w http.ResponseWriter, r *http.Request, user User) {
 			return
 		}
 
-		db, dbClose, err := openConnection()
-		if err != nil {
-			responseInternalError(w, err)
-			return
-		}
-		defer dbClose()
-
-		_, err = db.Query("INSERT INTO `users`(`username`, `password`,`full_name`) VALUES(?,?,?)", thisUser.Username, thisUser.Password, thisUser.FullName)
+		_, err = db.Exec("INSERT INTO `users`(`username`, `password`,`full_name`) VALUES(?,?,?)", thisUser.Username, thisUser.Password, thisUser.FullName)
 		if err != nil {
 			responseInternalError(w, err)
 			return
@@ -150,13 +127,6 @@ func updateUser(w http.ResponseWriter, r *http.Request, user User) {
 			return
 		}
 
-		db, dbClose, err := openConnection()
-		if err != nil {
-			responseInternalError(w, err)
-			return
-		}
-		defer dbClose()
-
 		reqBody, err := ioutil.ReadAll(r.Body)
 		if err != nil {
 			responseInternalError(w, err)
@@ -167,7 +137,7 @@ func updateUser(w http.ResponseWriter, r *http.Request, user User) {
 
 		json.Unmarshal(reqBody, &thisUser)
 
-		_, err = db.Query("UPDATE `users` SET `full_name` = ? WHERE `id` = ?", thisUser.FullName, id)
+		_, err = db.Exec("UPDATE `users` SET `full_name` = ? WHERE `id` = ?", thisUser.FullName, id)
 		if err != nil {
 			responseInternalError(w, err)
 			return
@@ -187,14 +157,7 @@ func deleteUser(w http.ResponseWriter, r *http.Request, user User) {
 			return
 		}
 
-		db, dbClose, err := openConnection()
-		if err != nil {
-			responseInternalError(w, err)
-			return
-		}
-		defer dbClose()
-
-		_, err = db.Query("DELETE FROM `users` WHERE `id` = ?", id)
+		_, err = db.Exec("DELETE FROM `users` WHERE `id` = ?", id)
 		if err != nil {
 			responseInternalError(w, err)
 			return
@@ -205,33 +168,3 @@ func deleteUser(w http.ResponseWriter, r *http.Request, user User) {
 	}
 	responseMessage(w, http.StatusUnauthorized, "Unauthorized")
 }
-
-// func isManagerOf(groupId int, userId int) (bool, error) {
-
-// 	db, dbClose, err := openConnection()
-// 	if err != nil {
-// 		return false, err
-// 	}
-// 	defer dbClose()
-
-// 	results, err := db.Query("SELECT `manager_id` FROM `groups` WHERE `id` = ", groupId)
-// 	if err != nil {
-// 		log.Printf(err.Error())
-// 		return false, nil
-// 	}
-
-// 	if results.Next() {
-
-// 		var manager_id int
-
-// 		results.Scan(&manager_id)
-
-// 		if manager_id == userId {
-// 			return true, nil
-// 		} else {
-// 			return false, nil
-// 		}
-// 	}
-
-// 	return false, nil
-// }

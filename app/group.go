@@ -1,6 +1,7 @@
 package app
 
 import (
+	"database/sql"
 	"errors"
 	"io/ioutil"
 	"net/http"
@@ -29,6 +30,7 @@ func getAddableMembers(w http.ResponseWriter, r *http.Request, user User) {
 		responseInternalError(w, err)
 		return
 	}
+	defer results.Close()
 
 	users := make([]User, 0)
 
@@ -60,6 +62,7 @@ func getMembers(w http.ResponseWriter, r *http.Request, user User) {
 		responseInternalError(w, err)
 		return
 	}
+	defer results.Close()
 
 	users := make([]User, 0)
 
@@ -94,7 +97,7 @@ func addMember(w http.ResponseWriter, r *http.Request, user User) {
 
 	// Check addable
 
-	_, err = db.Query("UPDATE `users` SET `group_id` = ? WHERE `id` = ?", id, idx)
+	_, err = db.Exec("UPDATE `users` SET `group_id` = ? WHERE `id` = ?", id, idx)
 	if err != nil {
 		responseInternalError(w, err)
 		return
@@ -118,7 +121,7 @@ func setManager(w http.ResponseWriter, r *http.Request, user User) {
 
 	// Check addable
 
-	_, err = db.Query("UPDATE `groups` SET `manager_id` = ? WHERE `id` = ?", idx, id)
+	_, err = db.Exec("UPDATE `groups` SET `manager_id` = ? WHERE `id` = ?", idx, id)
 	if err != nil {
 		responseInternalError(w, err)
 		return
@@ -137,7 +140,7 @@ func removeMember(w http.ResponseWriter, r *http.Request, user User) {
 
 	// Check removable
 
-	_, err = db.Query("UPDATE `users` SET `group_id` = NULL WHERE `id` = ?", idx)
+	_, err = db.Exec("UPDATE `users` SET `group_id` = NULL WHERE `id` = ?", idx)
 	if err != nil {
 		responseInternalError(w, err)
 		return
@@ -153,6 +156,7 @@ func getAllGroups(w http.ResponseWriter, r *http.Request, user User) {
 		responseInternalError(w, err)
 		return
 	}
+	defer results.Close()
 
 	groups := make([]Group, 0)
 
@@ -188,7 +192,7 @@ func createGroup(w http.ResponseWriter, r *http.Request, user User) {
 			return
 		}
 
-		_, err = db.Query("INSERT INTO `groups`(`name`, `description`) VALUES(?,?)", newGroup.Name, newGroup.Description)
+		_, err = db.Exec("INSERT INTO `groups`(`name`, `description`) VALUES(?,?)", newGroup.Name, newGroup.Description)
 		if err != nil {
 			responseInternalError(w, err)
 			return
@@ -201,23 +205,17 @@ func createGroup(w http.ResponseWriter, r *http.Request, user User) {
 }
 
 func getOneGroup(id int) (*Group, error) {
+	var group Group
 
-	results, err := db.Query("SELECT `id`,`name`,`description`,`manager_id` FROM `groups` WHERE `id` = ?", id)
-	if err != nil {
+	results := db.QueryRow("SELECT `id`,`name`,`description`,`manager_id` FROM `groups` WHERE `id` = ?", id)
+	err := results.Scan(&group.Id, &group.Name, &group.Description, &group.ManagerId)
+	if err == sql.ErrNoRows {
+		return nil, errors.New("Invalid group id")
+	} else if err != nil {
 		return nil, err
 	}
 
-	var group Group
-
-	if results.Next() {
-		err = results.Scan(&group.Id, &group.Name, &group.Description, &group.ManagerId)
-		if err != nil {
-			return nil, err
-		}
-		return &group, nil
-	}
-
-	return nil, errors.New("Invalid group id")
+	return &group, nil
 }
 
 func routerGetOneGroup(w http.ResponseWriter, r *http.Request, user User) {
@@ -255,7 +253,7 @@ func updateGroup(w http.ResponseWriter, r *http.Request, user User) {
 			return
 		}
 
-		_, err = db.Query("UPDATE `groups` SET `name` = ?, `description` = ? WHERE `id` = ?", group.Name, group.Description, idGr)
+		_, err = db.Exec("UPDATE `groups` SET `name` = ?, `description` = ? WHERE `id` = ?", group.Name, group.Description, idGr)
 		if err != nil {
 			responseInternalError(w, err)
 			return
@@ -271,7 +269,7 @@ func deleteGroup(w http.ResponseWriter, r *http.Request, user User) {
 	if *user.IsAdmin {
 		idGr := mux.Vars(r)["id"]
 
-		_, err := db.Query("DELETE FROM `groups` WHERE `id` = ?", idGr)
+		_, err := db.Exec("DELETE FROM `groups` WHERE `id` = ?", idGr)
 		if err != nil {
 			responseInternalError(w, err)
 			return

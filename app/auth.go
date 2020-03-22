@@ -1,6 +1,7 @@
 package app
 
 import (
+	"database/sql"
 	"errors"
 	"io/ioutil"
 	"net/http"
@@ -91,21 +92,14 @@ func login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	results, err := db.Query("SELECT `id` FROM `users` where `username` = ? AND `password` = ?", credential.Username, credential.Password)
-	if err != nil {
-		responseInternalError(w, err)
-		return
-	}
-
-	if !results.Next() {
-		responseMessage(w, http.StatusNotFound, "Username and passowrd is incorrect!")
-		return
-	}
-
 	var id int
 
+	results := db.QueryRow("SELECT `id` FROM `users` where `username` = ? AND `password` = ?", credential.Username, credential.Password)
 	err = results.Scan(&id)
-	if err != nil {
+	if err == sql.ErrNoRows {
+		responseMessage(w, http.StatusNotFound, "Username and passowrd is incorrect!")
+		return
+	} else if err != nil {
 		responseInternalError(w, err)
 		return
 	}

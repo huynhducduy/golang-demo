@@ -11,8 +11,9 @@ import (
 var db *sql.DB
 
 func openConnection() {
+	var err error
 
-	db, err := sql.Open("mysql", config.DB_USER+":"+config.DB_PASS+"@tcp("+config.DB_HOST+":"+config.DB_PORT+")/"+config.DB_NAME+"?parseTime=true")
+	db, err = sql.Open("mysql", config.DB_USER+":"+config.DB_PASS+"@tcp("+config.DB_HOST+":"+config.DB_PORT+")/"+config.DB_NAME+"?parseTime=true")
 
 	if err != nil {
 		log.Fatalf("Cannot open connection, %s", err)

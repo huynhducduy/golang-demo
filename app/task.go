@@ -36,25 +36,17 @@ type Task struct {
 }
 
 func getOneTask(id int) (*Task, error) {
+	var task Task
 
-	results, err := db.Query("SELECT `id`, `name`, `description`,`report`,`assigner`,`assignee`,`review`,`review_at`,`comment`,`proof`,`start_at`,`close_at`,`open_at`,`open_from`,`status`,`is_closed` FROM `tasks` WHERE `id` = ?", id)
-	if err != nil {
+	results := db.QueryRow("SELECT `id`, `name`, `description`,`report`,`assigner`,`assignee`,`review`,`review_at`,`comment`,`proof`,`start_at`,`close_at`,`open_at`,`open_from`,`status`,`is_closed` FROM `tasks` WHERE `id` = ?", id)
+	err := results.Scan(&task.Id, &task.Name, &task.Description, &task.Report, &task.Assigner, &task.Assignee, &task.Review, &task.ReviewAt, &task.Comment, &task.Proof, &task.StartAt, &task.OpenAt, &task.OpenAt, &task.OpenFrom, &task.Status, &task.IsClosed)
+	if err == sql.ErrNoRows {
+		return nil, errors.New("Invalid task id")
+	} else if err != nil {
 		return nil, err
 	}
 
-	if results.Next() {
-		var task Task
-
-		err = results.Scan(&task.Id, &task.Name, &task.Description, &task.Report, &task.Assigner, &task.Assignee, &task.Review, &task.ReviewAt, &task.Comment, &task.Proof, &task.StartAt, &task.OpenAt, &task.OpenAt, &task.OpenFrom, &task.Status, &task.IsClosed)
-		if err != nil {
-			return nil, err
-		}
-
-		return &task, nil
-	} else {
-		return nil, errors.New("Invalid group id")
-	}
-
+	return &task, nil
 }
 
 // -----------------------------------------------------------------------------
@@ -81,6 +73,7 @@ func getReopenableTasks(w http.ResponseWriter, r *http.Request, user User) {
 					responseInternalError(w, err)
 					return
 				}
+				defer results.Close()
 			}
 		}
 	} else {
@@ -89,6 +82,7 @@ func getReopenableTasks(w http.ResponseWriter, r *http.Request, user User) {
 			responseInternalError(w, err)
 			return
 		}
+		defer results.Close()
 	}
 
 	tasks := make([]Task, 0)
@@ -125,6 +119,7 @@ func getAssignableUsers(w http.ResponseWriter, r *http.Request, user User) {
 		responseInternalError(w, err)
 		return
 	}
+	defer results.Close()
 
 	users := make([]User, 0)
 
@@ -174,7 +169,7 @@ func checkTask(w http.ResponseWriter, r *http.Request, user User) {
 		attr = "status"
 	}
 
-	_, err = db.Query("UPDATE `tasks` SET `"+attr+"` = 1 WHERE `id` = ?", id)
+	_, err = db.Exec("UPDATE `tasks` SET `"+attr+"` = 1 WHERE `id` = ?", id)
 	if err != nil {
 		responseInternalError(w, err)
 		return
@@ -240,7 +235,7 @@ func confirmTask(w http.ResponseWriter, r *http.Request, user User) {
 	if r.URL.Query().Get("blocked") == "true" {
 		stt = 4
 	}
-	_, err = db.Query("UPDATE `tasks` SET `status` = ?, `proof` = ? WHERE `id` = ?", stt, filename, id)
+	_, err = db.Exec("UPDATE `tasks` SET `status` = ?, `proof` = ? WHERE `id` = ?", stt, filename, id)
 	if err != nil {
 		responseInternalError(w, err)
 		return
@@ -268,9 +263,9 @@ func verifyTask(w http.ResponseWriter, r *http.Request, user User) {
 	}
 
 	if r.URL.Query().Get("ok") == "false" {
-		_, err = db.Query("UPDATE `tasks` SET `status` = 2 `id` = ?", id)
+		_, err = db.Exec("UPDATE `tasks` SET `status` = 2 `id` = ?", id)
 	} else {
-		_, err = db.Query("UPDATE `tasks` SET `is_closed` = TRUE `id` = ?", id)
+		_, err = db.Exec("UPDATE `tasks` SET `is_closed` = TRUE `id` = ?", id)
 	}
 
 	if err != nil {
@@ -290,6 +285,7 @@ func getAllTasks(w http.ResponseWriter, r *http.Request, user User) {
 		responseInternalError(w, err)
 		return
 	}
+	defer results.Close()
 
 	tasks := make([]Task, 0)
 
@@ -371,7 +367,7 @@ insert:
 	// Check open_from
 	// Check assignee
 
-	_, err = db.Query("INSERT INTO `Tasks`(`name`, `description`,`assignee`,`status`,`assigner`,`open_at`,`open_from`) VALUES(?,?,?,?,?,?,?)", newTask.Name, newTask.Description, newTask.Assignee, newTask.Status, newTask.Assigner, time.Now().Unix(), newTask.OpenFrom)
+	_, err = db.Exec("INSERT INTO `Tasks`(`name`, `description`,`assignee`,`status`,`assigner`,`open_at`,`open_from`) VALUES(?,?,?,?,?,?,?)", newTask.Name, newTask.Description, newTask.Assignee, newTask.Status, newTask.Assigner, time.Now().Unix(), newTask.OpenFrom)
 	if err != nil {
 		responseInternalError(w, err)
 		return
@@ -432,9 +428,9 @@ func updateTask(w http.ResponseWriter, r *http.Request, user User) {
 	}
 
 	if thisTask.Assigner != nil && *thisTask.Assigner == *user.Id {
-		_, err = db.Query("UPDATE `tasks` SET `name` = ?, `description` = ?, `report` = ? WHERE `id` = ?", taskToUpdate.Name, taskToUpdate.Description, taskToUpdate.Report, id)
+		_, err = db.Exec("UPDATE `tasks` SET `name` = ?, `description` = ?, `report` = ? WHERE `id` = ?", taskToUpdate.Name, taskToUpdate.Description, taskToUpdate.Report, id)
 	} else {
-		_, err = db.Query("UPDATE `tasks` SET `report` = ? WHERE `id` = ?", taskToUpdate.Report, id)
+		_, err = db.Exec("UPDATE `tasks` SET `report` = ? WHERE `id` = ?", taskToUpdate.Report, id)
 	}
 	if err != nil {
 		responseInternalError(w, err)
@@ -450,7 +446,7 @@ func updateTask(w http.ResponseWriter, r *http.Request, user User) {
 func deleteTask(w http.ResponseWriter, r *http.Request, user User) {
 	idGr := mux.Vars(r)["id"]
 
-	_, err := db.Query("DELETE FROM `tasks` WHERE `id` = ?", idGr)
+	_, err := db.Exec("DELETE FROM `tasks` WHERE `id` = ?", idGr)
 	if err != nil {
 		responseInternalError(w, err)
 		return
