@@ -338,6 +338,8 @@ func getAllTasks(w http.ResponseWriter, r *http.Request, user User) {
 	var rassigner []interface{}
 	var rstt []interface{}
 	var rcls []interface{}
+	var endDate interface{}
+	var startDate interface{}
 
 	if r.URL.Query().Get("assignee") != "" {
 		assignee := r.URL.Query().Get("assignee")
@@ -429,16 +431,42 @@ func getAllTasks(w http.ResponseWriter, r *http.Request, user User) {
 		}
 	}
 
-	logg(rassignee)
-	logg(rassigner)
-	logg(rstt)
-	logg(rcls)
+	if r.URL.Query().Get("deadline") != "" {
+		deadline := r.URL.Query().Get("deadline")
+		splited := strings.Split(deadline, ",")
+
+		if len(splited) < 2 {
+			responseMessage(w, http.StatusBadRequest, "Bad deadline")
+			return
+		}
+
+		parse_time, err := strconv.Atoi(splited[0])
+		if err != nil {
+			responseMessage(w, http.StatusBadRequest, "Bad deadline")
+			return
+		}
+		startDate = parse_time
+
+		parse_time, err = strconv.Atoi(splited[1])
+		if err != nil {
+			responseMessage(w, http.StatusBadRequest, "Bad deadline")
+			return
+		}
+		endDate = parse_time
+	}
+
+	// logg(rassignee)
+	// logg(rassigner)
+	// logg(rstt)
+	// logg(rcls)
+	// logg(startDate)
+	// logg(endDate)
 
 	query := "SELECT `id`, `name`, `description`,`report`,`assigner`,`assignee`,`review`,`review_at`,`comment`,`proof`,`start_at`,`close_at`,`open_at`,`open_from`,`status`,`is_closed` FROM `tasks`"
 
 	var stuffs []interface{}
 	var and bool
-	if len(rstt) > 0 || len(rcls) > 0 || len(rassignee) > 0 || len(rassigner) > 0 {
+	if len(rstt) > 0 || len(rcls) > 0 || len(rassignee) > 0 || len(rassigner) > 0 || (startDate != nil && endDate != nil) {
 		query = query + " WHERE"
 		if len(rstt) > 0 {
 			query = query + " `status` IN (?" + strings.Repeat(",?", len(rstt)-1) + ")"
@@ -474,6 +502,14 @@ func getAllTasks(w http.ResponseWriter, r *http.Request, user User) {
 			}
 			query = query + " `assigner` IN (?" + strings.Repeat(",?", len(rassigner)-1) + ")"
 			stuffs = append(stuffs, rassigner...)
+		}
+
+		if startDate != nil && endDate != nil {
+			if and {
+				query = query + " AND"
+			}
+			query = query + " `stop_at` >= ? AND `stop_at` <= ?"
+			stuffs = append(stuffs, startDate, endDate)
 		}
 	}
 
