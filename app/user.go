@@ -126,12 +126,13 @@ func routerGetOneUser(w http.ResponseWriter, r *http.Request, user User) {
 }
 
 func updateUser(w http.ResponseWriter, r *http.Request, user User) {
-	if *user.IsAdmin {
-		id, err := strconv.Atoi(mux.Vars(r)["id"])
-		if err != nil {
-			responseMessage(w, http.StatusBadRequest, "Id must be an integer!")
-			return
-		}
+	id, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		responseMessage(w, http.StatusBadRequest, "Id must be an integer!")
+		return
+	}
+
+	if *user.IsAdmin || *user.Id == id {
 
 		reqBody, err := ioutil.ReadAll(r.Body)
 		if err != nil {

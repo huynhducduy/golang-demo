@@ -178,6 +178,60 @@ func checkTask(w http.ResponseWriter, r *http.Request, user User) {
 	responseMessage(w, http.StatusOK, "Task checked!")
 }
 
+func startTask(w http.ResponseWriter, r *http.Request, user User) {
+	id, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		responseMessage(w, http.StatusBadRequest, "Id must be an integer!")
+		return
+	}
+
+	task, err := getOneTask(id)
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+
+	if *task.Status != 1 || *task.IsClosed || *task.Assignee != *user.Id {
+		responseMessage(w, http.StatusBadRequest, "Cannot start this task!")
+		return
+	}
+
+	_, err = db.Exec("UPDATE `tasks` SET `status` = 2 WHERE `id` = ?", id)
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+
+	responseMessage(w, http.StatusOK, "Task checked!")
+}
+
+func closeTask(w http.ResponseWriter, r *http.Request, user User) {
+	id, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		responseMessage(w, http.StatusBadRequest, "Id must be an integer!")
+		return
+	}
+
+	task, err := getOneTask(id)
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+
+	if *task.IsClosed || (!*user.IsAdmin && *user.Id != *task.Assigner) {
+		responseMessage(w, http.StatusBadRequest, "Cannot close this task!")
+		return
+	}
+
+	_, err = db.Exec("UPDATE `tasks` SET `is_closed` = 1 WHERE `id` = ?", id)
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+
+	responseMessage(w, http.StatusOK, "Task closed!")
+}
+
 func confirmTask(w http.ResponseWriter, r *http.Request, user User) {
 	id, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
@@ -280,7 +334,152 @@ func verifyTask(w http.ResponseWriter, r *http.Request, user User) {
 
 func getAllTasks(w http.ResponseWriter, r *http.Request, user User) {
 
-	results, err := db.Query("SELECT `id`, `name`, `description`,`report`,`assigner`,`assignee`,`review`,`review_at`,`comment`,`proof`,`start_at`,`close_at`,`open_at`,`open_from`,`status`,`is_closed` FROM `tasks`")
+	var rassignee []interface{}
+	var rassigner []interface{}
+	var rstt []interface{}
+	var rcls []interface{}
+
+	if r.URL.Query().Get("assignee") != "" {
+		assignee := r.URL.Query().Get("assignee")
+		splited := strings.Split(assignee, ",")
+
+		for _, s := range splited {
+			r, err := strconv.Atoi(s)
+
+			if err != nil {
+				responseMessage(w, http.StatusBadRequest, "Assignees must be integers")
+				return
+			}
+
+			rassignee = append(rassignee, r)
+		}
+	}
+
+	if r.URL.Query().Get("assigner") != "" {
+		assigner := r.URL.Query().Get("assigner")
+		splited := strings.Split(assigner, ",")
+
+		for _, s := range splited {
+			r, err := strconv.Atoi(s)
+
+			if err != nil {
+				responseMessage(w, http.StatusBadRequest, "Assigners must be integers")
+				return
+			}
+
+			rassigner = append(rassigner, r)
+		}
+	}
+
+	if r.URL.Query().Get("status") != "" {
+		statuses := r.URL.Query().Get("status")
+		splited := strings.Split(statuses, ",")
+
+		var tuses []int
+
+		for _, s := range splited {
+			r, err := strconv.Atoi(s)
+			if err != nil {
+				responseMessage(w, http.StatusBadRequest, "Status must be integers")
+				return
+			}
+			tuses = append(tuses, r)
+		}
+
+		var stt []int
+		var cls []int
+
+		for _, s := range tuses {
+			switch s {
+			case -1: // 0, 1
+				stt = append(stt, 0)
+				cls = append(cls, 1)
+			case 0: // 0, 0
+				stt = append(stt, 0)
+				cls = append(cls, 0)
+			case 1: // 1, 0
+				stt = append(stt, 1)
+				cls = append(cls, 0)
+			case 2: // 2, 0
+				stt = append(stt, 2)
+				cls = append(cls, 0)
+			case 3: // 3|4, 0
+				stt = append(stt, 3, 4)
+				cls = append(cls, 0)
+			case 4: // 3, 1
+				stt = append(stt, 3)
+				cls = append(cls, 1)
+			case 5: // 4, 1
+				stt = append(stt, 4)
+				cls = append(cls, 1)
+			case 6: // 5
+				stt = append(stt, 5)
+			case 7: // 1|2, 1
+				stt = append(stt, 1, 2)
+				cls = append(cls, 1)
+			}
+		}
+
+		for _, s := range unique(stt) {
+			rstt = append(rstt, s)
+		}
+
+		for _, s := range unique(cls) {
+			rcls = append(rcls, s)
+		}
+	}
+
+	logg(rassignee)
+	logg(rassigner)
+	logg(rstt)
+	logg(rcls)
+
+	query := "SELECT `id`, `name`, `description`,`report`,`assigner`,`assignee`,`review`,`review_at`,`comment`,`proof`,`start_at`,`close_at`,`open_at`,`open_from`,`status`,`is_closed` FROM `tasks`"
+
+	var stuffs []interface{}
+	var and bool
+	if len(rstt) > 0 || len(rcls) > 0 || len(rassignee) > 0 || len(rassigner) > 0 {
+		query = query + " WHERE"
+		if len(rstt) > 0 {
+			query = query + " `status` IN (?" + strings.Repeat(",?", len(rstt)-1) + ")"
+			stuffs = append(stuffs, rstt...)
+			and = true
+		}
+
+		if len(rcls) > 0 {
+			if and {
+				query = query + " AND"
+			} else {
+				and = true
+			}
+			query = query + " `is_closed` IN (?" + strings.Repeat(",?", len(rcls)-1) + ")"
+			stuffs = append(stuffs, rcls...)
+		}
+
+		if len(rassignee) > 0 {
+			if and {
+				query = query + " AND"
+			} else {
+				and = true
+			}
+			query = query + " `assignee` IN (?" + strings.Repeat(",?", len(rassignee)-1) + ")"
+			stuffs = append(stuffs, rassignee...)
+		}
+
+		if len(rassigner) > 0 {
+			if and {
+				query = query + " AND"
+			} else {
+				and = true
+			}
+			query = query + " `assigner` IN (?" + strings.Repeat(",?", len(rassigner)-1) + ")"
+			stuffs = append(stuffs, rassigner...)
+		}
+	}
+
+	logg(query)
+
+	results, err := db.Query(query, stuffs...)
 	if err != nil {
 		responseInternalError(w, err)
 		return
@@ -347,18 +546,13 @@ func createTask(w http.ResponseWriter, r *http.Request, user User) {
 		return
 	}
 
-	if newTask.StartAt == nil {
-		responseMessage(w, http.StatusBadRequest, "Start must not be empty!")
-		return
-	}
-
 	if newTask.StopAt == nil {
 		responseMessage(w, http.StatusBadRequest, "Stop must not be empty!")
 		return
 	}
 
-	if *newTask.StopAt <= *newTask.StartAt {
-		responseMessage(w, http.StatusBadRequest, "Stop must happen after start!")
+	if *newTask.StopAt <= time.Now().Unix() {
+		responseMessage(w, http.StatusBadRequest, "Stop must happen in the future!")
 		return
 	}
 
@@ -380,7 +574,6 @@ insert:
 	}
 
 	responseCreated(w, lid)
-	return
 }
 
 func routerGetOneTask(w http.ResponseWriter, r *http.Request, user User) {
