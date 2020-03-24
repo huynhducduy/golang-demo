@@ -67,3 +67,11 @@ func readNoti(w http.ResponseWriter, r *http.Request, user User) {
 
 	responseMessage(w, http.StatusOK, "OK!")
 }
+
+func saveToken(w http.ResponseWriter, r *http.Request, user User) {
+	_, err := db.Exec("INSERT INTO `token`(`user_id`, `token`) VALUES(?,?)", *user.Id, r.URL.Query().Get("token"))
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+}

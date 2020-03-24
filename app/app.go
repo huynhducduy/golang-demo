@@ -64,6 +64,7 @@ func Run() error {
 
 	router.HandleFunc("/api/v1/noti", isAuthenticated(getAllNotis)).Methods("GET")
 	router.HandleFunc("/api/v1/noti", isAuthenticated(readAllNotis)).Methods("POST")
+	router.HandleFunc("/api/v1/noti", isAuthenticated(saveToken)).Methods("PUT")
 	router.HandleFunc("/api/v1/noti/{id:[0-9]+}", isAuthenticated(readNoti)).Methods("POST")
 
 	router.HandleFunc("/api/v1/me", isAuthenticated(routerGetMe)).Methods("GET")
