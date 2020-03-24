@@ -83,6 +83,10 @@ func getMembers(w http.ResponseWriter, r *http.Request, user User) {
 }
 
 func addMember(w http.ResponseWriter, r *http.Request, user User) {
+	if !*user.IsAdmin {
+		responseMessage(w, http.StatusUnauthorized, "You cannot get this!")
+		return
+	}
 	id, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
 		responseMessage(w, http.StatusBadRequest, "Id must be an integer!")
@@ -107,6 +111,10 @@ func addMember(w http.ResponseWriter, r *http.Request, user User) {
 }
 
 func setManager(w http.ResponseWriter, r *http.Request, user User) {
+	if !*user.IsAdmin {
+		responseMessage(w, http.StatusUnauthorized, "You cannot get this!")
+		return
+	}
 	id, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
 		responseMessage(w, http.StatusBadRequest, "Id must be an integer!")
@@ -131,6 +139,10 @@ func setManager(w http.ResponseWriter, r *http.Request, user User) {
 }
 
 func removeMember(w http.ResponseWriter, r *http.Request, user User) {
+	if !*user.IsAdmin {
+		responseMessage(w, http.StatusUnauthorized, "You cannot get this!")
+		return
+	}
 
 	idx, err := strconv.Atoi(r.URL.Query().Get("id"))
 	if err != nil {

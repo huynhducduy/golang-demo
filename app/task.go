@@ -54,42 +54,42 @@ func getReopenableTasks(w http.ResponseWriter, r *http.Request, user User) {
 
 	query := "SELECT `id`, `name` FROM `tasks` WHERE (`is_closed` = TRUE AND `status` != 4) OR `status` != 5"
 
-	var mng int
 	var results *sql.Rows
 	var err error
+	var stuffs []interface{}
 
 	if !*user.IsAdmin {
+
 		if user.GroupId != nil {
-			group, err := getOneGroup(*user.GroupId)
+			var group *Group
+			group, err = getOneGroup(*user.GroupId)
 			if err != nil {
 				responseInternalError(w, err)
 				return
 			}
 
-			if *group.ManagerId == *user.Id {
-				results, err = db.Query(query+" `assigner` = ?", mng)
-				if err != nil {
-					responseInternalError(w, err)
-					return
-				}
-				defer results.Close()
-			}
-		}
-	} else {
-		results, err = db.Query(query)
-		if err != nil {
-			responseInternalError(w, err)
+			query = query + " AND `assigner` = ?"
+			stuffs = append(stuffs, *group.ManagerId)
+
+		} else {
+			responseMessage(w, http.StatusForbidden, "Please join a group to create tasks")
 			return
 		}
-		defer results.Close()
 	}
+
+	results, err = db.Query(query, stuffs...)
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+	defer results.Close()
 
 	tasks := make([]Task, 0)
 
 	for results.Next() {
 		var task Task
 
-		err = results.Scan(&task.Id, &task.Name)
+		err := results.Scan(&task.Id, &task.Name)
 		if err != nil {
 			responseInternalError(w, err)
 			return
@@ -107,18 +107,41 @@ func getAssignableUsers(w http.ResponseWriter, r *http.Request, user User) {
 	var results *sql.Rows
 	var err error
 
-	query := "SELECT `id`, `full_name`, `username`, `group_id` FROM `users` WHERE `is_admin` = 0 AND `id` != ?"
+	query := "SELECT `id`, `full_name`, `username`, `group_id` FROM `users` WHERE `is_admin` = 0"
 
 	if *user.IsAdmin {
-		results, err = db.Query(query, user.Id)
+		results, err = db.Query(query+" AND `id` != ?", user.Id)
+		if err != nil {
+			responseInternalError(w, err)
+			return
+		}
+		defer results.Close()
+	} else if user.GroupId != nil {
+		group, err := getOneGroup(*user.GroupId)
+		if err != nil {
+			responseInternalError(w, err)
+			return
+		}
+
+		if *group.ManagerId == *user.Id {
+			results, err = db.Query(query+" AND `group_id` = ?", user.GroupId)
+			if err != nil {
+				responseInternalError(w, err)
+				return
+			}
+			defer results.Close()
+		} else {
+			results, err = db.Query(query+" AND `id` = ?", user.Id)
+			if err != nil {
+				responseInternalError(w, err)
+				return
+			}
+			defer results.Close()
+		}
 	} else {
-		results, err = db.Query(query+" AND `group_id` = ?", user.Id, user.GroupId)
-	}
-	if err != nil {
-		responseInternalError(w, err)
+		responseMessage(w, http.StatusForbidden, "Please join a group to create tasks")
 		return
 	}
-	defer results.Close()
 
 	users := make([]User, 0)
 
@@ -593,6 +616,7 @@ func createTask(w http.ResponseWriter, r *http.Request, user User) {
 
 	if !*user.IsAdmin {
 		if user.GroupId != nil {
+			logg(*user.GroupId)
 			group, err := getOneGroup(*user.GroupId)
 
 			if err != nil {
@@ -700,8 +724,11 @@ func updateTask(w http.ResponseWriter, r *http.Request, user User) {
 
 	if thisTask.Assigner != nil && *thisTask.Assigner == *user.Id {
 		_, err = db.Exec("UPDATE `tasks` SET `name` = ?, `description` = ?, `report` = ? WHERE `id` = ?", taskToUpdate.Name, taskToUpdate.Description, taskToUpdate.Report, id)
-	} else {
+	} else if thisTask.Assignee != nil && *thisTask.Assignee == *user.Id {
 		_, err = db.Exec("UPDATE `tasks` SET `report` = ? WHERE `id` = ?", taskToUpdate.Report, id)
+	} else {
+		responseMessage(w, http.StatusUnauthorized, "Cannot edit")
+		return
 	}
 	if err != nil {
 		responseInternalError(w, err)
@@ -715,16 +742,18 @@ func updateTask(w http.ResponseWriter, r *http.Request, user User) {
 }
 
 func deleteTask(w http.ResponseWriter, r *http.Request, user User) {
-	idGr := mux.Vars(r)["id"]
+	if *user.IsAdmin {
+		idGr := mux.Vars(r)["id"]
 
-	_, err := db.Exec("DELETE FROM `tasks` WHERE `id` = ?", idGr)
-	if err != nil {
-		responseInternalError(w, err)
-		return
+		_, err := db.Exec("DELETE FROM `tasks` WHERE `id` = ?", idGr)
+		if err != nil {
+			responseInternalError(w, err)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(MessageResponse{
+			Message: "Task deleted!",
+		})
 	}
-
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(MessageResponse{
-		Message: "Task deleted!",
-	})
 }
