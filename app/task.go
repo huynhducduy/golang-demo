@@ -218,7 +218,7 @@ func getPermission(w http.ResponseWriter, r *http.Request, user User) { // user
 		return
 	}
 
-	if *task.Assigner == *user.Id {
+	if task.Assigner != nil && *task.Assigner == *user.Id {
 		responseMessage(w, http.StatusOK, "manage")
 		return
 	}
@@ -606,6 +606,8 @@ func createTask(w http.ResponseWriter, r *http.Request, user User) {
 
 	json.Unmarshal(reqBody, &newTask)
 
+	logg(newTask)
+
 	if newTask.Name == nil && newTask.Description == nil {
 		responseMessage(w, http.StatusBadRequest, "Task's name and task's description must not be empty!")
 		return
@@ -635,7 +637,6 @@ func createTask(w http.ResponseWriter, r *http.Request, user User) {
 		}
 	}
 
-	logg("WTFFF")
 	// Admin or manager
 	stt = 1
 	newTask.Assigner = user.Id
