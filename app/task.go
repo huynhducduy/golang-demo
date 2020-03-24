@@ -139,7 +139,7 @@ func getAssignableUsers(w http.ResponseWriter, r *http.Request, user User) {
 	json.NewEncoder(w).Encode(users)
 }
 
-func checkTask(w http.ResponseWriter, r *http.Request, user User) {
+func checkTask(w http.ResponseWriter, r *http.Request, user User) { // manager
 	id, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
 		responseMessage(w, http.StatusBadRequest, "Id must be an integer!")
@@ -178,7 +178,7 @@ func checkTask(w http.ResponseWriter, r *http.Request, user User) {
 	responseMessage(w, http.StatusOK, "Task checked!")
 }
 
-func startTask(w http.ResponseWriter, r *http.Request, user User) {
+func startTask(w http.ResponseWriter, r *http.Request, user User) { // user
 	id, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
 		responseMessage(w, http.StatusBadRequest, "Id must be an integer!")
@@ -205,7 +205,7 @@ func startTask(w http.ResponseWriter, r *http.Request, user User) {
 	responseMessage(w, http.StatusOK, "Task checked!")
 }
 
-func closeTask(w http.ResponseWriter, r *http.Request, user User) {
+func closeTask(w http.ResponseWriter, r *http.Request, user User) { // manager
 	id, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
 		responseMessage(w, http.StatusBadRequest, "Id must be an integer!")
@@ -232,7 +232,7 @@ func closeTask(w http.ResponseWriter, r *http.Request, user User) {
 	responseMessage(w, http.StatusOK, "Task closed!")
 }
 
-func confirmTask(w http.ResponseWriter, r *http.Request, user User) {
+func confirmTask(w http.ResponseWriter, r *http.Request, user User) { // user
 	id, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
 		responseMessage(w, http.StatusBadRequest, "Id must be an integer!")
@@ -254,7 +254,7 @@ func confirmTask(w http.ResponseWriter, r *http.Request, user User) {
 
 	file, _, err := r.FormFile("proof")
 	if err != nil {
-		responseMessage(w, http.StatusBadRequest, "Please uplaod proof!")
+		responseMessage(w, http.StatusBadRequest, "Please upload proof!")
 		return
 	}
 
@@ -298,7 +298,7 @@ func confirmTask(w http.ResponseWriter, r *http.Request, user User) {
 	responseMessage(w, http.StatusOK, "Confirm task successfully!")
 }
 
-func verifyTask(w http.ResponseWriter, r *http.Request, user User) {
+func verifyTask(w http.ResponseWriter, r *http.Request, user User) { // manager
 	id, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
 		responseMessage(w, http.StatusBadRequest, "Id must be an integer!")
@@ -513,6 +513,8 @@ func getAllTasks(w http.ResponseWriter, r *http.Request, user User) {
 		}
 	}
 
+	query = query + " ORDER BY stop_at ASC"
+
 	logg(query)
 
 	results, err := db.Query(query, stuffs...)
@@ -567,14 +569,18 @@ func createTask(w http.ResponseWriter, r *http.Request, user User) {
 				return
 			}
 
-			if *group.ManagerId != *user.Id {
+			if *group.ManagerId != *user.Id { // not manager
 				newTask.Assignee = user.Id
 				stt = 0
 				goto insert
 			}
+		} else {
+			responseMessage(w, http.StatusForbidden, "Please join a group to create tasks")
+			return
 		}
 	}
 
+	// Admin or manager
 	stt = 1
 	newTask.Assigner = user.Id
 	if newTask.Assignee == nil {
