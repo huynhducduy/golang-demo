@@ -197,6 +197,12 @@ func checkTask(w http.ResponseWriter, r *http.Request, user User) { // manager
 		return
 	}
 
+	_, err = db.Exec("INSERT INTO `notifications`(`user_id`, `task_id`,`message`) VALUES(?,?,?)", *task.Assignee, *task.Id, "Your task \""+*task.Name+"\" has been checked!")
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+
 	responseMessage(w, http.StatusOK, "Task checked!")
 }
 
@@ -255,6 +261,12 @@ func startTask(w http.ResponseWriter, r *http.Request, user User) { // user
 		return
 	}
 
+	_, err = db.Exec("INSERT INTO `notifications`(`user_id`, `task_id`,`message`) VALUES(?,?,?)", *task.Assigner, *task.Id, "Task \""+*task.Name+"\" just got started!")
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+
 	responseMessage(w, http.StatusOK, "Task checked!")
 }
 
@@ -277,6 +289,12 @@ func closeTask(w http.ResponseWriter, r *http.Request, user User) { // manager
 	}
 
 	_, err = db.Exec("UPDATE `tasks` SET `is_closed` = 1, `close_at` = ? WHERE `id` = ?", time.Now().Unix(), id)
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+
+	_, err = db.Exec("INSERT INTO `notifications`(`user_id`, `task_id`,`message`) VALUES(?,?,?)", *task.Assignee, *task.Id, "Your task \""+*task.Name+"\" has been closed!")
 	if err != nil {
 		responseInternalError(w, err)
 		return
@@ -349,6 +367,12 @@ func confirmTask(w http.ResponseWriter, r *http.Request, user User) { // user
 		return
 	}
 
+	_, err = db.Exec("INSERT INTO `notifications`(`user_id`, `task_id`,`message`) VALUES(?,?,?)", *task.Assigner, *task.Id, "Task \""+*task.Name+"\" need your review!")
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+
 	responseMessage(w, http.StatusOK, "Confirm task successfully!")
 }
 
@@ -376,6 +400,12 @@ func verifyTask(w http.ResponseWriter, r *http.Request, user User) { // manager
 		_, err = db.Exec("UPDATE `tasks` SET `is_closed` = TRUE, `close_at` = ?  WHERE`id` = ?", time.Now().Unix(), id)
 	}
 
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+
+	_, err = db.Exec("INSERT INTO `notifications`(`user_id`, `task_id`,`message`) VALUES(?,?,?)", *task.Assignee, *task.Id, "Task \""+*task.Name+"\" has been verified!")
 	if err != nil {
 		responseInternalError(w, err)
 		return
@@ -672,6 +702,13 @@ insert:
 		return
 	}
 
+	if stt == 1 {
+		_, err = db.Exec("INSERT INTO `notifications`(`user_id`, `task_id`,`message`) VALUES(?,?,?)", *newTask.Assignee, lid, "Task \""+*newTask.Name+"\" has been assigned to you!")
+		if err != nil {
+			responseInternalError(w, err)
+			return
+		}
+	}
 	responseCreated(w, lid)
 }
 
