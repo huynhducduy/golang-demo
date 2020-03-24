@@ -1,10 +1,12 @@
 package app
 
 import (
+	"bytes"
 	"database/sql"
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"math/rand"
 	"net/http"
 	"os"
@@ -636,8 +638,6 @@ func createTask(w http.ResponseWriter, r *http.Request, user User) {
 
 	json.Unmarshal(reqBody, &newTask)
 
-	logg(newTask)
-
 	if newTask.Name == nil && newTask.Description == nil {
 		responseMessage(w, http.StatusBadRequest, "Task's name and task's description must not be empty!")
 		return
@@ -645,22 +645,22 @@ func createTask(w http.ResponseWriter, r *http.Request, user User) {
 
 	var stt int = 0
 	newTask.Status = &stt
+	var group *Group
 
 	if !*user.IsAdmin {
 		if user.GroupId != nil {
-			logg(*user.GroupId)
-			group, err := getOneGroup(*user.GroupId)
+			group, err = getOneGroup(*user.GroupId)
 
 			if err != nil {
 				responseInternalError(w, err)
 				return
 			}
-
 			if *group.ManagerId != *user.Id { // not manager
 				newTask.Assignee = user.Id
 				stt = 0
 				goto insert
 			}
+			// logg(newTask)
 		} else {
 			responseMessage(w, http.StatusForbidden, "Please join a group to create tasks")
 			return
@@ -707,6 +707,52 @@ insert:
 		if err != nil {
 			responseInternalError(w, err)
 			return
+		}
+	} else {
+		_, err = db.Exec("INSERT INTO `notifications`(`user_id`, `task_id`,`message`) VALUES(?,?,?)", *group.ManagerId, lid, "Task \""+*newTask.Name+"\" need your approval!")
+		if err != nil {
+			responseInternalError(w, err)
+			return
+		}
+
+		// Send push notification
+		results, err := db.Query("SELECT `token` FROM `token` WHERE `user_id` = ?", *group.ManagerId)
+		if err != nil {
+			responseInternalError(w, err)
+			return
+		}
+		defer results.Close()
+
+		var tmp string
+		var tmp2 []string
+
+		for results.Next() {
+			results.Scan(&tmp)
+			tmp2 = append(tmp2, "ExponentPushToken["+tmp+"]")
+		}
+
+		x := map[interface{}]interface{}{
+			"to":    tmp2,
+			"title": "Task \"" + *newTask.Name + "\" need your approval!",
+			"body":  "Please quick",
+			"sound": "default",
+		}
+
+		requestBody, err := json.Marshal(x)
+		if err != nil {
+			responseInternalError(w, err)
+			return
+		}
+
+		resp, err := http.Post("https://exp.host/--/api/v2/push/send", "application/json", bytes.NewBuffer(requestBody))
+		if err != nil {
+			log.Fatalln(err)
+		}
+		defer resp.Body.Close()
+
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			log.Fatalln(err)
 		}
 	}
 	responseCreated(w, lid)

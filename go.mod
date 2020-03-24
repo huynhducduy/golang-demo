@@ -8,6 +8,7 @@ require (
 	github.com/gorilla/handlers v1.4.2
 	github.com/gorilla/mux v1.7.4
 	github.com/json-iterator/go v1.1.9
+	github.com/oliveroneill/exponent-server-sdk-golang v0.0.0-20190619221248-65582a10ed02
 	github.com/rs/cors v1.7.0
 	github.com/spf13/viper v1.6.2
 )

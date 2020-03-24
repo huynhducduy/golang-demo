@@ -1,9 +1,8 @@
 package main
 
 import (
-	"log"
-
 	"github.com/huynhducduy/task-management-api/app"
+	"log"
 )
 
 func main() {
