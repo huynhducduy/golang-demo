@@ -54,6 +54,7 @@ func Run() error {
 	router.HandleFunc("/api/v1/task/{id:[0-9]+}/confirm", isAuthenticated(confirmTask)).Methods("POST")
 	router.HandleFunc("/api/v1/task/{id:[0-9]+}/verify", isAuthenticated(verifyTask)).Methods("POST")
 	router.HandleFunc("/api/v1/task/{id:[0-9]+}/close", isAuthenticated(closeTask)).Methods("POST")
+	router.HandleFunc("/api/v1/task/{id:[0-9]+}/permission", isAuthenticated(getPermission)).Methods("GET")
 
 	router.HandleFunc("/api/v1/user", isAuthenticated(getAllUsers)).Methods("GET")
 	router.HandleFunc("/api/v1/user", isAuthenticated(createUser)).Methods("POST")

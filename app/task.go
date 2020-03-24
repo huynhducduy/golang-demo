@@ -23,7 +23,6 @@ type Task struct {
 	Assigner    *int    `json:"assigner"`
 	Assignee    *int    `json:"assignee"`
 	Review      *int    `json:"review"`
-	ReviewAt    *int64  `json:"review_at"`
 	Comment     *string `json:"comment"`
 	Proof       *string `json:"proof"`
 	StartAt     *int64  `json:"start_at"`
@@ -38,8 +37,8 @@ type Task struct {
 func getOneTask(id int) (*Task, error) {
 	var task Task
 
-	results := db.QueryRow("SELECT `id`, `name`, `description`,`report`,`assigner`,`assignee`,`review`,`review_at`,`comment`,`proof`,`start_at`,`close_at`,`open_at`,`open_from`,`status`,`is_closed` FROM `tasks` WHERE `id` = ?", id)
-	err := results.Scan(&task.Id, &task.Name, &task.Description, &task.Report, &task.Assigner, &task.Assignee, &task.Review, &task.ReviewAt, &task.Comment, &task.Proof, &task.StartAt, &task.OpenAt, &task.OpenAt, &task.OpenFrom, &task.Status, &task.IsClosed)
+	results := db.QueryRow("SELECT `id`, `name`, `description`,`report`,`assigner`,`assignee`,`review`,`comment`,`proof`,`start_at`,`stop_at`,`close_at`,`open_at`,`open_from`,`status`,`is_closed` FROM `tasks` WHERE `id` = ?", id)
+	err := results.Scan(&task.Id, &task.Name, &task.Description, &task.Report, &task.Assigner, &task.Assignee, &task.Review, &task.Comment, &task.Proof, &task.StartAt, &task.StopAt, &task.CloseAt, &task.OpenAt, &task.OpenFrom, &task.Status, &task.IsClosed)
 	if err == sql.ErrNoRows {
 		return nil, errors.New("Invalid task id")
 	} else if err != nil {
@@ -113,7 +112,7 @@ func getAssignableUsers(w http.ResponseWriter, r *http.Request, user User) {
 	if *user.IsAdmin {
 		results, err = db.Query(query, user.Id)
 	} else {
-		results, err = db.Query(query+" `group_id` = ?", user.Id, user.GroupId)
+		results, err = db.Query(query+" AND `group_id` = ?", user.Id, user.GroupId)
 	}
 	if err != nil {
 		responseInternalError(w, err)
@@ -178,6 +177,37 @@ func checkTask(w http.ResponseWriter, r *http.Request, user User) { // manager
 	responseMessage(w, http.StatusOK, "Task checked!")
 }
 
+func getPermission(w http.ResponseWriter, r *http.Request, user User) { // user
+	if *user.IsAdmin {
+		responseMessage(w, http.StatusOK, "manage")
+		return
+	}
+
+	id, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		responseMessage(w, http.StatusBadRequest, "Id must be an integer!")
+		return
+	}
+
+	task, err := getOneTask(id)
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+
+	if *task.Assigner == *user.Id {
+		responseMessage(w, http.StatusOK, "manage")
+		return
+	}
+
+	if *task.Assignee == *user.Id {
+		responseMessage(w, http.StatusOK, "do")
+		return
+	}
+
+	responseMessage(w, http.StatusNotFound, "nope")
+}
+
 func startTask(w http.ResponseWriter, r *http.Request, user User) { // user
 	id, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
@@ -191,12 +221,12 @@ func startTask(w http.ResponseWriter, r *http.Request, user User) { // user
 		return
 	}
 
-	if *task.Status != 1 || *task.IsClosed || *task.Assignee != *user.Id {
+	if *task.Status != 1 || *task.IsClosed || (*task.Assignee != *user.Id && *task.Assigner != *user.Id && !*user.IsAdmin) {
 		responseMessage(w, http.StatusBadRequest, "Cannot start this task!")
 		return
 	}
 
-	_, err = db.Exec("UPDATE `tasks` SET `status` = 2 WHERE `id` = ?", id)
+	_, err = db.Exec("UPDATE `tasks` SET `status` = 2, `start_at` = ? WHERE `id` = ?", time.Now().Unix(), id)
 	if err != nil {
 		responseInternalError(w, err)
 		return
@@ -223,7 +253,7 @@ func closeTask(w http.ResponseWriter, r *http.Request, user User) { // manager
 		return
 	}
 
-	_, err = db.Exec("UPDATE `tasks` SET `is_closed` = 1 WHERE `id` = ?", id)
+	_, err = db.Exec("UPDATE `tasks` SET `is_closed` = 1, `close_at` = ? WHERE `id` = ?", time.Now().Unix(), id)
 	if err != nil {
 		responseInternalError(w, err)
 		return
@@ -245,7 +275,8 @@ func confirmTask(w http.ResponseWriter, r *http.Request, user User) { // user
 		return
 	}
 
-	if *task.Status != 2 || *task.IsClosed || *task.Assignee != *user.Id {
+	if *task.Status != 2 || *task.IsClosed || (*task.Assignee != *user.Id && *task.Assigner != *user.Id && !*user.IsAdmin) {
+		logg("WTFFFFFF")
 		responseMessage(w, http.StatusBadRequest, "Cannot confirm this task!")
 		return
 	}
@@ -317,9 +348,9 @@ func verifyTask(w http.ResponseWriter, r *http.Request, user User) { // manager
 	}
 
 	if r.URL.Query().Get("ok") == "false" {
-		_, err = db.Exec("UPDATE `tasks` SET `status` = 2 `id` = ?", id)
+		_, err = db.Exec("UPDATE `tasks` SET `status` = 2 WHERE `id` = ?", id)
 	} else {
-		_, err = db.Exec("UPDATE `tasks` SET `is_closed` = TRUE `id` = ?", id)
+		_, err = db.Exec("UPDATE `tasks` SET `is_closed` = TRUE, `close_at` = ?  WHERE`id` = ?", time.Now().Unix(), id)
 	}
 
 	if err != nil {
@@ -462,7 +493,7 @@ func getAllTasks(w http.ResponseWriter, r *http.Request, user User) {
 	// logg(startDate)
 	// logg(endDate)
 
-	query := "SELECT `id`, `name`, `description`,`report`,`assigner`,`assignee`,`review`,`review_at`,`comment`,`proof`,`start_at`,`close_at`,`open_at`,`open_from`,`status`,`is_closed` FROM `tasks`"
+	query := "SELECT `id`, `name`, `description`,`report`,`assigner`,`assignee`,`review`,`comment`,`proof`,`start_at`,`stop_at`,`close_at`,`open_at`,`open_from`,`status`,`is_closed` FROM `tasks`"
 
 	var stuffs []interface{}
 	var and bool
@@ -529,7 +560,7 @@ func getAllTasks(w http.ResponseWriter, r *http.Request, user User) {
 	for results.Next() {
 		var task Task
 
-		err = results.Scan(&task.Id, &task.Name, &task.Description, &task.Report, &task.Assigner, &task.Assignee, &task.Review, &task.ReviewAt, &task.Comment, &task.Proof, &task.StartAt, &task.OpenAt, &task.OpenAt, &task.OpenFrom, &task.Status, &task.IsClosed)
+		err = results.Scan(&task.Id, &task.Name, &task.Description, &task.Report, &task.Assigner, &task.Assignee, &task.Review, &task.Comment, &task.Proof, &task.StartAt, &task.StopAt, &task.CloseAt, &task.OpenAt, &task.OpenFrom, &task.Status, &task.IsClosed)
 		if err != nil {
 			responseInternalError(w, err)
 			return
@@ -580,6 +611,7 @@ func createTask(w http.ResponseWriter, r *http.Request, user User) {
 		}
 	}
 
+	logg("WTFFF")
 	// Admin or manager
 	stt = 1
 	newTask.Assigner = user.Id
