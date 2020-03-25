@@ -205,6 +205,48 @@ func checkTask(w http.ResponseWriter, r *http.Request, user User) { // manager
 		return
 	}
 
+	// Send push notification
+	results, err := db.Query("SELECT `token` FROM `token` WHERE `user_id` = ?", *task.Assignee)
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+	defer results.Close()
+
+	var tmp string
+	var tmp2 []string
+
+	for results.Next() {
+		results.Scan(&tmp)
+		tmp2 = append(tmp2, "ExponentPushToken["+tmp+"]")
+	}
+
+	x := map[interface{}]interface{}{
+		"to":    tmp2,
+		"title": "Your task \"" + *task.Name + "\" has been checked!",
+		"body":  "Please check",
+		"sound": "default",
+	}
+
+	requestBody, err := json.Marshal(x)
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+
+	resp, err := http.Post("https://exp.host/--/api/v2/push/send", "application/json", bytes.NewBuffer(requestBody))
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	logg(string(body))
+
 	responseMessage(w, http.StatusOK, "Task checked!")
 }
 
@@ -269,6 +311,48 @@ func startTask(w http.ResponseWriter, r *http.Request, user User) { // user
 		return
 	}
 
+	// Send push notification
+	results, err := db.Query("SELECT `token` FROM `token` WHERE `user_id` = ?", *task.Assigner)
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+	defer results.Close()
+
+	var tmp string
+	var tmp2 []string
+
+	for results.Next() {
+		results.Scan(&tmp)
+		tmp2 = append(tmp2, "ExponentPushToken["+tmp+"]")
+	}
+
+	x := map[interface{}]interface{}{
+		"to":    tmp2,
+		"title": "Task \"" + *task.Name + "\" just got started!",
+		"body":  "Please check",
+		"sound": "default",
+	}
+
+	requestBody, err := json.Marshal(x)
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+
+	resp, err := http.Post("https://exp.host/--/api/v2/push/send", "application/json", bytes.NewBuffer(requestBody))
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	logg(string(body))
+
 	responseMessage(w, http.StatusOK, "Task checked!")
 }
 
@@ -301,6 +385,48 @@ func closeTask(w http.ResponseWriter, r *http.Request, user User) { // manager
 		responseInternalError(w, err)
 		return
 	}
+
+	// Send push notification
+	results, err := db.Query("SELECT `token` FROM `token` WHERE `user_id` = ?", *task.Assignee)
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+	defer results.Close()
+
+	var tmp string
+	var tmp2 []string
+
+	for results.Next() {
+		results.Scan(&tmp)
+		tmp2 = append(tmp2, "ExponentPushToken["+tmp+"]")
+	}
+
+	x := map[interface{}]interface{}{
+		"to":    tmp2,
+		"title": "Your task \"" + *task.Name + "\" has been closed!",
+		"body":  "Please check",
+		"sound": "default",
+	}
+
+	requestBody, err := json.Marshal(x)
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+
+	resp, err := http.Post("https://exp.host/--/api/v2/push/send", "application/json", bytes.NewBuffer(requestBody))
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	logg(string(body))
 
 	responseMessage(w, http.StatusOK, "Task closed!")
 }
@@ -375,6 +501,48 @@ func confirmTask(w http.ResponseWriter, r *http.Request, user User) { // user
 		return
 	}
 
+	// Send push notification
+	results, err := db.Query("SELECT `token` FROM `token` WHERE `user_id` = ?", *task.Assigner)
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+	defer results.Close()
+
+	var tmp string
+	var tmp2 []string
+
+	for results.Next() {
+		results.Scan(&tmp)
+		tmp2 = append(tmp2, "ExponentPushToken["+tmp+"]")
+	}
+
+	x := map[interface{}]interface{}{
+		"to":    tmp2,
+		"title": "Task \"" + *task.Name + "\" need your review!",
+		"body":  "Please check",
+		"sound": "default",
+	}
+
+	requestBody, err := json.Marshal(x)
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+
+	resp, err := http.Post("https://exp.host/--/api/v2/push/send", "application/json", bytes.NewBuffer(requestBody))
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	logg(string(body))
+
 	responseMessage(w, http.StatusOK, "Confirm task successfully!")
 }
 
@@ -412,6 +580,48 @@ func verifyTask(w http.ResponseWriter, r *http.Request, user User) { // manager
 		responseInternalError(w, err)
 		return
 	}
+
+	// Send push notification
+	results, err := db.Query("SELECT `token` FROM `token` WHERE `user_id` = ?", *task.Assignee)
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+	defer results.Close()
+
+	var tmp string
+	var tmp2 []string
+
+	for results.Next() {
+		results.Scan(&tmp)
+		tmp2 = append(tmp2, "ExponentPushToken["+tmp+"]")
+	}
+
+	x := map[interface{}]interface{}{
+		"to":    tmp2,
+		"title": "Task \"" + *task.Name + "\" has been verified!",
+		"body":  "Please check",
+		"sound": "default",
+	}
+
+	requestBody, err := json.Marshal(x)
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+
+	resp, err := http.Post("https://exp.host/--/api/v2/push/send", "application/json", bytes.NewBuffer(requestBody))
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	logg(string(body))
 
 	responseMessage(w, http.StatusOK, "Verify task successfully")
 }
@@ -660,7 +870,6 @@ func createTask(w http.ResponseWriter, r *http.Request, user User) {
 				stt = 0
 				goto insert
 			}
-			// logg(newTask)
 		} else {
 			responseMessage(w, http.StatusForbidden, "Please join a group to create tasks")
 			return
@@ -708,6 +917,48 @@ insert:
 			responseInternalError(w, err)
 			return
 		}
+
+		// Send push notification
+		results, err := db.Query("SELECT `token` FROM `token` WHERE `user_id` = ?", *newTask.Assignee)
+		if err != nil {
+			responseInternalError(w, err)
+			return
+		}
+		defer results.Close()
+
+		var tmp string
+		var tmp2 []string
+
+		for results.Next() {
+			results.Scan(&tmp)
+			tmp2 = append(tmp2, "ExponentPushToken["+tmp+"]")
+		}
+
+		x := map[interface{}]interface{}{
+			"to":    tmp2,
+			"title": "Task \"" + *newTask.Name + "\" has been assigned to you!",
+			"body":  "Please quick",
+			"sound": "default",
+		}
+
+		requestBody, err := json.Marshal(x)
+		if err != nil {
+			responseInternalError(w, err)
+			return
+		}
+
+		resp, err := http.Post("https://exp.host/--/api/v2/push/send", "application/json", bytes.NewBuffer(requestBody))
+		if err != nil {
+			log.Fatalln(err)
+		}
+		defer resp.Body.Close()
+
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		logg(string(body))
 	} else {
 		_, err = db.Exec("INSERT INTO `notifications`(`user_id`, `task_id`,`message`) VALUES(?,?,?)", *group.ManagerId, lid, "Task \""+*newTask.Name+"\" need your approval!")
 		if err != nil {
@@ -754,6 +1005,8 @@ insert:
 		if err != nil {
 			log.Fatalln(err)
 		}
+
+		logg(string(body))
 	}
 	responseCreated(w, lid)
 }

@@ -1,9 +1,11 @@
 package app
 
 import (
+	"bytes"
 	"database/sql"
 	"errors"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -107,6 +109,54 @@ func addMember(w http.ResponseWriter, r *http.Request, user User) {
 		return
 	}
 
+	_, err = db.Exec("INSERT INTO `notifications`(`user_id`,`message`) VALUES(?,?)", idx, "You have been added to a group!")
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+
+	// Send push notification
+	results, err := db.Query("SELECT `token` FROM `token` WHERE `user_id` = ?", idx)
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+	defer results.Close()
+
+	var tmp string
+	var tmp2 []string
+
+	for results.Next() {
+		results.Scan(&tmp)
+		tmp2 = append(tmp2, "ExponentPushToken["+tmp+"]")
+	}
+
+	x := map[interface{}]interface{}{
+		"to":    tmp2,
+		"title": "You have been added to a group!",
+		"body":  "Please check",
+		"sound": "default",
+	}
+
+	requestBody, err := json.Marshal(x)
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+
+	resp, err := http.Post("https://exp.host/--/api/v2/push/send", "application/json", bytes.NewBuffer(requestBody))
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	logg(string(body))
+
 	responseMessage(w, http.StatusOK, "Add member successfully!")
 }
 
@@ -135,6 +185,54 @@ func setManager(w http.ResponseWriter, r *http.Request, user User) {
 		return
 	}
 
+	_, err = db.Exec("INSERT INTO `notifications`(`user_id`,`message`) VALUES(?,?)", idx, "You are now a manager, congratulation!")
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+
+	// Send push notification
+	results, err := db.Query("SELECT `token` FROM `token` WHERE `user_id` = ?", idx)
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+	defer results.Close()
+
+	var tmp string
+	var tmp2 []string
+
+	for results.Next() {
+		results.Scan(&tmp)
+		tmp2 = append(tmp2, "ExponentPushToken["+tmp+"]")
+	}
+
+	x := map[interface{}]interface{}{
+		"to":    tmp2,
+		"title": "You are now a manager, congratulation!",
+		"body":  "Please check",
+		"sound": "default",
+	}
+
+	requestBody, err := json.Marshal(x)
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+
+	resp, err := http.Post("https://exp.host/--/api/v2/push/send", "application/json", bytes.NewBuffer(requestBody))
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	logg(string(body))
+
 	responseMessage(w, http.StatusOK, "Set manager successfully!")
 }
 
@@ -157,6 +255,54 @@ func removeMember(w http.ResponseWriter, r *http.Request, user User) {
 		responseInternalError(w, err)
 		return
 	}
+
+	_, err = db.Exec("INSERT INTO `notifications`(`user_id`,`message`) VALUES(?,?)", idx, "You have been remove from your group!")
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+
+	// Send push notification
+	results, err := db.Query("SELECT `token` FROM `token` WHERE `user_id` = ?", idx)
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+	defer results.Close()
+
+	var tmp string
+	var tmp2 []string
+
+	for results.Next() {
+		results.Scan(&tmp)
+		tmp2 = append(tmp2, "ExponentPushToken["+tmp+"]")
+	}
+
+	x := map[interface{}]interface{}{
+		"to":    tmp2,
+		"title": "You have been remove from your group!",
+		"body":  "Dont be sad",
+		"sound": "default",
+	}
+
+	requestBody, err := json.Marshal(x)
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+
+	resp, err := http.Post("https://exp.host/--/api/v2/push/send", "application/json", bytes.NewBuffer(requestBody))
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	logg(string(body))
 
 	responseMessage(w, http.StatusOK, "Remove member successfully!")
 }

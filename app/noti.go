@@ -69,7 +69,14 @@ func readNoti(w http.ResponseWriter, r *http.Request, user User) {
 }
 
 func saveToken(w http.ResponseWriter, r *http.Request, user User) {
-	_, err := db.Exec("INSERT INTO `token`(`user_id`, `token`) VALUES(?,?)", *user.Id, r.URL.Query().Get("token"))
+
+	_, err := db.Exec("DELETE FROM `token` WHERE `token` =  ?", r.URL.Query().Get("token"))
+	if err != nil {
+		responseInternalError(w, err)
+		return
+	}
+
+	_, err = db.Exec("INSERT INTO `token`(`user_id`, `token`) VALUES(?,?)", *user.Id, r.URL.Query().Get("token"))
 	if err != nil {
 		responseInternalError(w, err)
 		return
